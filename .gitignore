@@ -1,0 +1,29 @@
+# 抽出結果
+/data/*
+!/data/.gitkeep
+/logs/*
+!/logs/.gitkeep
+
+# ビルド結果
+/web/*
+!/web/.gitkeep
+/frontend/dist/
+/frontend/node_modules/
+
+# ローカル環境
+/.venv/
+/.mise/
+/tests/.work/
+/scripts/
+
+# Python キャッシュ
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+
+# TypeScript キャッシュ
+*.tsbuildinfo

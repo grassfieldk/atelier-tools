@@ -1,0 +1,62 @@
+[tools]
+node = "26.7.0"
+python = "3.14.7"
+
+[tasks.setup]
+description = "プロジェクト環境を構築"
+run = [
+  'if not exist ".venv\Scripts\python.exe" python -m venv .venv',
+  '".venv\Scripts\python.exe" -m pip install --no-cache-dir -r requirements.lock',
+  'npm --prefix frontend install',
+  'npm --prefix frontend run build',
+]
+
+[tasks.frontend-install]
+description = "フロントエンド依存関係をインストール"
+run = 'npm --prefix frontend install'
+
+[tasks.frontend-build]
+description = "フロントエンドをビルド"
+run = 'npm --prefix frontend run build'
+
+[tasks.start]
+description = "Web UI を起動"
+depends = ["frontend-build"]
+run = '".venv\Scripts\python.exe" app.py web'
+
+[tasks.dev]
+description = "開発モードで Web UI を起動"
+depends = ["dev-api", "dev-ui"]
+
+[tasks.dev-api]
+description = "開発用 API を起動"
+run = '".venv\Scripts\python.exe" -m uvicorn atelier_tools.server:create_app --factory --host 127.0.0.1 --port 47831 --reload'
+
+[tasks.dev-ui]
+description = "Vite 開発サーバーを起動"
+run = 'npm --prefix frontend run dev'
+
+[tasks.scan]
+description = "ゲームデータを抽出"
+run = '".venv\Scripts\python.exe" app.py scan'
+
+[tasks.search]
+description = "抽出済みデータを検索"
+run = '".venv\Scripts\python.exe" app.py search'
+
+[tasks.export]
+description = "CSV を出力"
+run = '".venv\Scripts\python.exe" app.py export'
+
+[tasks.diagnose]
+description = "ゲームの配置を検証"
+run = '".venv\Scripts\python.exe" app.py diagnose'
+
+[tasks.test]
+description = "テストを実行"
+depends = ["frontend-typecheck"]
+run = '".venv\Scripts\python.exe" -m pytest -q -p no:cacheprovider --basetemp tests/.work'
+
+[tasks.frontend-typecheck]
+description = "フロントエンドの型を確認"
+run = 'npm --prefix frontend run typecheck'
