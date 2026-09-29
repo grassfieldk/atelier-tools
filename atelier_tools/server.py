@@ -55,12 +55,11 @@ def create_app() -> FastAPI:
         kind: str,
         q: str = "",
         language: str = "ja",
-        limit: int = Query(default=500, ge=1, le=1000),
     ) -> dict:
         if game_id not in GAMES:
             raise HTTPException(status_code=404, detail="ゲームが見つかりません")
-        items = await run_in_threadpool(search_structured, kind, q, language, limit)
-        return {"count": len(items), "limit": limit, "items": items}
+        items = await run_in_threadpool(search_structured, kind, q, language)
+        return {"count": len(items), "items": items}
 
     @app.get("/")
     async def index() -> FileResponse:

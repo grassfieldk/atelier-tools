@@ -593,7 +593,7 @@ def read_summary() -> dict | None:
     return json.loads(SUMMARY_PATH.read_text(encoding="utf-8"))
 
 
-def search_structured(kind: str, query: str = "", language: str = "ja", limit: int = 500) -> list[dict]:
+def search_structured(kind: str, query: str = "", language: str = "ja") -> list[dict]:
     if not DB_PATH.is_file():
         raise FileNotFoundError("インデックスがありません。先にデータを抽出してください。")
     if kind not in {"items", "recipes", "traits", "maps"}:
@@ -601,7 +601,6 @@ def search_structured(kind: str, query: str = "", language: str = "ja", limit: i
     language = language if language in {"ja", "en", "zh"} else "ja"
     name_column = f"name_{language}"
     description_column = f"description_{language}"
-    limit = max(1, min(int(limit), 1000))
     parameters: list[object] = []
     if kind == "items":
         sql = (
@@ -615,7 +614,7 @@ def search_structured(kind: str, query: str = "", language: str = "ja", limit: i
         if query:
             sql += f" WHERE instr(lower(items.{name_column}), lower(?)) > 0"
             parameters.append(query)
-        sql += " ORDER BY items.game_item_id LIMIT ?"
+        sql += " ORDER BY items.game_item_id"
     elif kind == "recipes":
         sql = (
             f"SELECT recipes.recipe_id AS id, items.{name_column} AS name, items.level, items.value, recipes.days "
@@ -624,13 +623,13 @@ def search_structured(kind: str, query: str = "", language: str = "ja", limit: i
         if query:
             sql += f" WHERE instr(lower(items.{name_column}), lower(?)) > 0"
             parameters.append(query)
-        sql += " ORDER BY recipes.recipe_id LIMIT ?"
+        sql += " ORDER BY recipes.recipe_id"
     elif kind == "traits":
         sql = f"SELECT trait_id AS id, {name_column} AS name, {description_column} AS description, cost FROM traits"
         if query:
             sql += f" WHERE instr(lower({name_column}), lower(?)) > 0 OR instr(lower({description_column}), lower(?)) > 0"
             parameters.extend((query, query))
-        sql += " ORDER BY trait_id LIMIT ?"
+        sql += " ORDER BY trait_id"
     else:
         alternate_name_column = f"alternate_name_{language}"
         alternate_description_column = f"alternate_description_{language}"
@@ -646,8 +645,7 @@ def search_structured(kind: str, query: str = "", language: str = "ja", limit: i
                 f"OR instr(lower({alternate_description_column}), lower(?)) > 0"
             )
             parameters.extend((query, query, query, query))
-        sql += " ORDER BY map_id LIMIT ?"
-    parameters.append(limit)
+        sql += " ORDER BY map_id"
     connection = sqlite3.connect(f"file:{DB_PATH.as_posix()}?mode=ro", uri=True)
     connection.row_factory = sqlite3.Row
     try:
