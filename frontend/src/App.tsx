@@ -240,7 +240,6 @@ function GamePage({ gameId, language, onLanguageChange }: { gameId: string; lang
   const [items, setItems] = useState<DataItem[]>([]);
   const [count, setCount] = useState(0);
   const [error, setError] = useState('');
-  useEffect(() => { setQuery(''); setSubmittedQuery(''); }, [language]);
   useEffect(() => {
     let cancelled = false;
     request<{ items: Game[] }>(`/api/games?language=${language}`).then((payload) => {
@@ -265,7 +264,13 @@ function GamePage({ gameId, language, onLanguageChange }: { gameId: string; lang
   return (
     <Container size="lg" py="xl" h="100dvh" style={{ overflow: 'hidden' }}>
       <Stack gap="lg" h="100%" mih={0}>
-        <Header language={language} onLanguageChange={onLanguageChange} />
+        <Header language={language} onLanguageChange={(nextLanguage) => {
+          if (nextLanguage !== language) {
+            setQuery('');
+            setSubmittedQuery('');
+            onLanguageChange(nextLanguage);
+          }
+        }} />
         <Title order={1}>{title}</Title>
         <SegmentedControl
           aria-label={text('dataCategories')}
