@@ -1,13 +1,27 @@
 import Ajv from 'ajv/dist/2020';
 import schema from './generated/api.schema.json';
-import type { DataResponse, DetailResponse, GamesResponse, DisplayRow, Dataset, DisplayNumberColumn, DisplayTextColumn } from './generated/api';
+import type {
+  DataResponse,
+  DetailResponse,
+  GamesResponse,
+  DisplayRow,
+  Dataset,
+  DisplayNumberColumn,
+  DisplayTextColumn,
+} from './generated/api';
 
 export type { DataResponse, DetailResponse, GamesResponse, DisplayRow };
 export type DataKind = DataResponse['kind'];
 export type Language = 'ja' | 'en' | 'zh';
 export type EntityByKind = Pick<Dataset, DataKind>;
 export type EntityFor<Kind extends DataKind> = EntityByKind[Kind][number];
-export const dataKinds = ['items', 'recipes', 'traits', 'maps', 'monsters'] as const satisfies readonly DataKind[];
+export const dataKinds = [
+  'items',
+  'recipes',
+  'traits',
+  'maps',
+  'monsters',
+] as const satisfies readonly DataKind[];
 
 export function numberValue(row: DisplayRow, column: DisplayNumberColumn): number | undefined {
   const cell = row.cells[column.id];
@@ -31,15 +45,31 @@ async function fetchJson(path: string): Promise<unknown> {
   const response = await fetch(path);
   const payload: unknown = await response.json();
   if (!response.ok) {
-    const message = typeof payload === 'object' && payload !== null && 'detail' in payload ? String(payload.detail) : `HTTP ${response.status}`;
+    const message =
+      typeof payload === 'object' && payload !== null && 'detail' in payload
+        ? String(payload.detail)
+        : `HTTP ${response.status}`;
     throw new Error(message);
   }
   return payload;
 }
 
-export async function requestDetail(gameId: string, kind: DataKind, identifier: number, language: Language): Promise<DetailResponse> {
-  const payload = await fetchJson(`/api/games/${encodeURIComponent(gameId)}/data/${kind}/${identifier}?language=${language}`);
-  if (!validateDetail(payload) || payload.kind !== kind || payload.item.id !== identifier || payload.game.id !== gameId) throw new Error('Invalid detail response');
+export async function requestDetail(
+  gameId: string,
+  kind: DataKind,
+  identifier: number,
+  language: Language,
+): Promise<DetailResponse> {
+  const payload = await fetchJson(
+    `/api/games/${encodeURIComponent(gameId)}/data/${kind}/${identifier}?language=${language}`,
+  );
+  if (
+    !validateDetail(payload) ||
+    payload.kind !== kind ||
+    payload.item.id !== identifier ||
+    payload.game.id !== gameId
+  )
+    throw new Error('Invalid detail response');
   for (const column of payload.columns) {
     if (payload.item.cells[column.id]?.type !== column.type) throw new Error('Invalid detail cell');
   }
@@ -52,11 +82,19 @@ export async function requestGames(language: Language): Promise<GamesResponse> {
   return payload;
 }
 
-export async function requestData(gameId: string, kind: DataKind, language: Language, query: string): Promise<DataResponse> {
-  const payload = await fetchJson(`/api/games/${encodeURIComponent(gameId)}/data/${kind}?language=${language}&q=${encodeURIComponent(query)}`);
+export async function requestData(
+  gameId: string,
+  kind: DataKind,
+  language: Language,
+  query: string,
+): Promise<DataResponse> {
+  const payload = await fetchJson(
+    `/api/games/${encodeURIComponent(gameId)}/data/${kind}?language=${language}&q=${encodeURIComponent(query)}`,
+  );
   if (!validateData(payload) || payload.kind !== kind) throw new Error('Invalid data response');
   const identifiers = new Set(payload.columns.map((column) => column.id));
-  if (identifiers.size !== payload.columns.length || payload.count !== payload.items.length) throw new Error('Invalid table metadata');
+  if (identifiers.size !== payload.columns.length || payload.count !== payload.items.length)
+    throw new Error('Invalid table metadata');
   for (const row of payload.items) {
     if (Object.keys(row.cells).length !== identifiers.size) throw new Error('Invalid row columns');
     for (const column of payload.columns) {

@@ -8,15 +8,34 @@ from pathlib import Path
 from .core import search_index
 from .games.base import ExtractionContext
 from .games.registry import get_game, registered_games
-from .models import DATA_KINDS, DataKind, DataResponse, DetailLink, DetailResponse, DisplayNumberColumn, DisplayTextColumn, DisplayRow, GamesResponse, GameSummary, Language
+from .models import (
+    DATA_KINDS,
+    DataKind,
+    DataResponse,
+    Dataset,
+    DetailLink,
+    DetailResponse,
+    DisplayNumberColumn,
+    DisplayReference,
+    DisplayRow,
+    DisplayTextColumn,
+    Entity,
+    GamesResponse,
+    GameSummary,
+    Item,
+    Language,
+    MapArea,
+    Monster,
+    Recipe,
+)
 from .storage import database_path, game_directory, load_dataset, save_dataset
-from .models import Dataset, Entity, DisplayReference, Item, Recipe, MapArea, Monster
 
 
 def migrate_game(game_id: str) -> dict:
+    import shutil
+
     from .core import DATA_ROOT, DB_PATH
     from .games.meruru import MeruruAdapter
-    import shutil
 
     adapter = get_game(game_id)
     if not isinstance(adapter, MeruruAdapter):
@@ -33,11 +52,17 @@ def migrate_game(game_id: str) -> dict:
 
 
 def list_games(language: Language) -> GamesResponse:
-    return GamesResponse(items=[
-        GameSummary(id=adapter.definition.id, title=getattr(adapter.definition.title, language), series=getattr(adapter.definition.series, language))
-        for adapter in registered_games()
-        if database_path(adapter.definition.id).is_file()
-    ])
+    return GamesResponse(
+        items=[
+            GameSummary(
+                id=adapter.definition.id,
+                title=getattr(adapter.definition.title, language),
+                series=getattr(adapter.definition.series, language),
+            )
+            for adapter in registered_games()
+            if database_path(adapter.definition.id).is_file()
+        ]
+    )
 
 
 def extract_game(game_id: str, game_path: str | Path | None = None) -> dict:
@@ -55,26 +80,57 @@ def extract_game(game_id: str, game_path: str | Path | None = None) -> dict:
 def display_row(dataset: Dataset, entity: Entity, language: Language) -> DisplayRow:
     references: dict[str, list[DisplayReference]] = {}
 
-    def reference(kind: DataKind, identifier: int, quantity: float | None = None) -> DisplayReference:
+    def reference(
+        kind: DataKind, identifier: int, quantity: float | None = None
+    ) -> DisplayReference:
         target = next((value for value in getattr(dataset, kind) if value.id == identifier), None)
-        return DisplayReference(kind=kind if target is not None else None, id=identifier, name=getattr(target.name, language) if target is not None else f"#{identifier}", quantity=quantity)
+        return DisplayReference(
+            kind=kind if target is not None else None,
+            id=identifier,
+            name=getattr(target.name, language) if target is not None else f"#{identifier}",
+            quantity=quantity,
+        )
 
     if isinstance(entity, Recipe):
         references["name"] = [reference("items", entity.result)]
         references["ingredients"] = [
-            DisplayReference(kind="categories", id=ingredient.reference.id, name=getattr(dataset.categories[ingredient.reference.id], language), quantity=ingredient.quantity)
-            if ingredient.reference.kind == "categories" else reference(ingredient.reference.kind, ingredient.reference.id, ingredient.quantity)
+            DisplayReference(
+                kind="categories",
+                id=ingredient.reference.id,
+                name=getattr(dataset.categories[ingredient.reference.id], language),
+                quantity=ingredient.quantity,
+            )
+            if ingredient.reference.kind == "categories"
+            else reference(ingredient.reference.kind, ingredient.reference.id, ingredient.quantity)
             for ingredient in entity.ingredients
         ]
     if isinstance(entity, MapArea):
         references["items"] = [reference("items", identifier) for identifier in entity.items]
-        references["monsters"] = [reference("monsters", identifier) for identifier in entity.monsters]
+        references["monsters"] = [
+            reference("monsters", identifier) for identifier in entity.monsters
+        ]
     if isinstance(entity, Monster):
-        references["drops"] = [reference("items", drop.item if drop.item is not None else drop.source_item_id) for drop in entity.drops]
-        references["maps"] = [reference("maps", area.id) for area in dataset.maps if entity.id in area.monsters]
+        references["drops"] = [
+            reference("items", drop.item if drop.item is not None else drop.source_item_id)
+            for drop in entity.drops
+        ]
+        references["maps"] = [
+            reference("maps", area.id) for area in dataset.maps if entity.id in area.monsters
+        ]
     if isinstance(entity, Item):
-        references["categories"] = [DisplayReference(kind="categories", id=identifier, name=getattr(dataset.categories[identifier], language)) for identifier in entity.categories]
-    return DisplayRow(id=entity.id, cells={key: values[language] for key, values in entity.cells.items()}, references=references)
+        references["categories"] = [
+            DisplayReference(
+                kind="categories",
+                id=identifier,
+                name=getattr(dataset.categories[identifier], language),
+            )
+            for identifier in entity.categories
+        ]
+    return DisplayRow(
+        id=entity.id,
+        cells={key: values[language] for key, values in entity.cells.items()},
+        references=references,
+    )
 
 
 def get_data(game_id: str, kind: DataKind, language: Language, query: str = "") -> DataResponse:
@@ -83,8 +139,26 @@ def get_data(game_id: str, kind: DataKind, language: Language, query: str = "") 
     rows = [display_row(dataset, entity, language) for entity in getattr(dataset, kind)]
     if query:
         normalized = query.casefold()
-        rows = [row for row in rows if any(normalized in str(cell.value or "").casefold() for cell in row.cells.values())]
-    return DataResponse(kind=kind, count=len(rows), columns=[DisplayNumberColumn(id=column.id, label=getattr(column.label, language), type="number") if column.type == "number" else DisplayTextColumn(id=column.id, label=getattr(column.label, language), type="text") for column in definition.columns.for_kind(kind)], items=rows, categories=[{"id": identifier, "name": getattr(name, language)} for identifier, name in sorted(dataset.categories.items())])
+        rows = [
+            row
+            for row in rows
+            if any(normalized in str(cell.value or "").casefold() for cell in row.cells.values())
+        ]
+    return DataResponse(
+        kind=kind,
+        count=len(rows),
+        columns=[
+            DisplayNumberColumn(id=column.id, label=getattr(column.label, language), type="number")
+            if column.type == "number"
+            else DisplayTextColumn(id=column.id, label=getattr(column.label, language), type="text")
+            for column in definition.columns.for_kind(kind)
+        ],
+        items=rows,
+        categories=[
+            {"id": identifier, "name": getattr(name, language)}
+            for identifier, name in sorted(dataset.categories.items())
+        ],
+    )
 
 
 def get_detail(game_id: str, kind: DataKind, identifier: int, language: Language) -> DetailResponse:
@@ -97,8 +171,16 @@ def get_detail(game_id: str, kind: DataKind, identifier: int, language: Language
 
     def add(category: DataKind, target: int, quantity: float | None = None) -> None:
         value = next((value for value in getattr(dataset, category) if value.id == target), None)
-        if value is not None and not (category == kind and target == identifier) and not any(link.id == target for link in related[category]):
-            related[category].append(DetailLink(kind=category, id=target, name=getattr(value.name, language), quantity=quantity))
+        if (
+            value is not None
+            and not (category == kind and target == identifier)
+            and not any(link.id == target for link in related[category])
+        ):
+            related[category].append(
+                DetailLink(
+                    kind=category, id=target, name=getattr(value.name, language), quantity=quantity
+                )
+            )
 
     for recipe in dataset.recipes:
         if kind == "recipes" and recipe.id == identifier:
@@ -106,7 +188,13 @@ def get_detail(game_id: str, kind: DataKind, identifier: int, language: Language
             for ingredient in recipe.ingredients:
                 if ingredient.reference.kind == "items":
                     add("items", ingredient.reference.id, ingredient.quantity)
-        if kind == "items" and (recipe.result == identifier or any(ingredient.reference.kind == "items" and ingredient.reference.id == identifier for ingredient in recipe.ingredients)):
+        if kind == "items" and (
+            recipe.result == identifier
+            or any(
+                ingredient.reference.kind == "items" and ingredient.reference.id == identifier
+                for ingredient in recipe.ingredients
+            )
+        ):
             add("recipes", recipe.id)
     for area in dataset.maps:
         if kind == "maps" and area.id == identifier:
@@ -114,7 +202,9 @@ def get_detail(game_id: str, kind: DataKind, identifier: int, language: Language
                 add("items", target)
             for target in area.monsters:
                 add("monsters", target)
-        if (kind == "items" and identifier in area.items) or (kind == "monsters" and identifier in area.monsters):
+        if (kind == "items" and identifier in area.items) or (
+            kind == "monsters" and identifier in area.monsters
+        ):
             add("maps", area.id)
     for monster in dataset.monsters:
         for drop in monster.drops:
@@ -123,7 +213,18 @@ def get_detail(game_id: str, kind: DataKind, identifier: int, language: Language
             if kind == "items" and drop.item == identifier:
                 add("monsters", monster.id)
     data = get_data(game_id, kind, language)
-    return DetailResponse(game=GameSummary(id=game_id, title=getattr(definition.title, language), series=getattr(definition.series, language)), kind=kind, name=getattr(entity.name, language), columns=data.columns, item=display_row(dataset, entity, language), related=related)
+    return DetailResponse(
+        game=GameSummary(
+            id=game_id,
+            title=getattr(definition.title, language),
+            series=getattr(definition.series, language),
+        ),
+        kind=kind,
+        name=getattr(entity.name, language),
+        columns=data.columns,
+        item=display_row(dataset, entity, language),
+        related=related,
+    )
 
 
 def search_game(game_id: str, query: str, category: str, language: str, limit: int) -> list[dict]:
@@ -132,7 +233,12 @@ def search_game(game_id: str, query: str, category: str, language: str, limit: i
     if not path.is_file():
         raise FileNotFoundError("作品のデータがありません。")
     with closing(sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True)) as connection:
-        has_records = connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='records'").fetchone() is not None
+        has_records = (
+            connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='records'"
+            ).fetchone()
+            is not None
+        )
     if has_records:
         return search_index(query, category, language, limit, database=path)
     from .core import VALID_CATEGORIES, VALID_LANGUAGES
@@ -148,8 +254,22 @@ def search_game(game_id: str, query: str, category: str, language: str, limit: i
                 for locale in languages:
                     cell = values.get(locale)
                     record_category = "name_candidate" if column_id == "name" else "text"
-                    if cell and cell.value is not None and (category == "all" or category == record_category) and query.casefold() in str(cell.value).casefold():
-                        result.append({"id": entity.id, "kind": kind, "category": record_category, "language": locale, "text": str(cell.value), "source": column_id})
+                    if (
+                        cell
+                        and cell.value is not None
+                        and (category == "all" or category == record_category)
+                        and query.casefold() in str(cell.value).casefold()
+                    ):
+                        result.append(
+                            {
+                                "id": entity.id,
+                                "kind": kind,
+                                "category": record_category,
+                                "language": locale,
+                                "text": str(cell.value),
+                                "source": column_id,
+                            }
+                        )
                         if len(result) >= max(1, min(limit, 1000)):
                             return result
     return result
@@ -163,15 +283,38 @@ def export_game(game_id: str) -> dict[str, str]:
     outputs = {}
     for kind in DATA_KINDS:
         path = directory / f"{kind}.csv"
-        fields = [(column.id, language) for column in definition.columns.for_kind(kind) for language in ("ja", "en", "zh")]
+        fields = [
+            (column.id, language)
+            for column in definition.columns.for_kind(kind)
+            for language in ("ja", "en", "zh")
+        ]
         with path.open("w", newline="", encoding="utf-8-sig") as stream:
             writer = csv.writer(stream)
-            writer.writerow(["id", *(f"{key}_{language}" for key, language in fields), "attributes", "references"])
+            writer.writerow(
+                [
+                    "id",
+                    *(f"{key}_{language}" for key, language in fields),
+                    "attributes",
+                    "references",
+                ]
+            )
             for entity in getattr(dataset, kind):
-                writer.writerow([entity.id, *(entity.cells[key][language].value for key, language in fields), entity.model_dump_json(include={"attributes"}), entity.model_dump_json(exclude={"id", "name", "cells", "attributes"})])
+                writer.writerow(
+                    [
+                        entity.id,
+                        *(entity.cells[key][language].value for key, language in fields),
+                        entity.model_dump_json(include={"attributes"}),
+                        entity.model_dump_json(exclude={"id", "name", "cells", "attributes"}),
+                    ]
+                )
         outputs[kind] = str(path)
-    with closing(sqlite3.connect(f"file:{database_path(game_id).as_posix()}?mode=ro", uri=True)) as connection:
-        tables = [row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")]
+    with closing(
+        sqlite3.connect(f"file:{database_path(game_id).as_posix()}?mode=ro", uri=True)
+    ) as connection:
+        tables = [
+            row[0]
+            for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        ]
         for table in tables:
             if table == "game_dataset" or table.startswith("sqlite_"):
                 continue

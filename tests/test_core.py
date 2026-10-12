@@ -2,11 +2,18 @@ from __future__ import annotations
 
 import sqlite3
 import struct
-
 from pathlib import Path
 
 from atelier_tools import core
-from atelier_tools.core import DB_PATH, diagnose, find_ebm_layout, pe_sections, read_ebm, search_structured, text_category
+from atelier_tools.core import (
+    DB_PATH,
+    diagnose,
+    find_ebm_layout,
+    pe_sections,
+    read_ebm,
+    search_structured,
+    text_category,
+)
 from atelier_tools.meruru import extract_structured_data
 from atelier_tools.server import create_app
 
@@ -53,24 +60,50 @@ def test_meruru_items_recipes_and_traits_are_extracted():
     assert len(structured["map_monsters"]) == 126
     assert structured["items"][0]["name_zh"] == "卡夫"
     bomb_ingredients = [item for item in structured["recipe_ingredients"] if item["recipe_id"] == 1]
-    assert [(item["reference_id"], item["quantity"]) for item in bomb_ingredients] == [(252, 2), (52, 1)]
+    assert [(item["reference_id"], item["quantity"]) for item in bomb_ingredients] == [
+        (252, 2),
+        (52, 1),
+    ]
 
 
 def test_structured_search_returns_recipe_ingredients():
     recipe = search_structured("recipes", "無限メテオール", "ja")[0]
     assert recipe["days"] == 2.5
-    assert [ingredient["name"] for ingredient in recipe["ingredients"]] == ["メテオール", "世界霊魂", "時の石版", "中和剤"]
+    assert [ingredient["name"] for ingredient in recipe["ingredients"]] == [
+        "メテオール",
+        "世界霊魂",
+        "時の石版",
+        "中和剤",
+    ]
 
 
 def test_structured_search_returns_map_contents():
     area = search_structured("maps", "モヨリの森", "ja")[0]
-    assert [item["name"] for item in area["items"]] == ["プレイン草", "マジックグラス", "ハチの巣", "千日草", "アイヒェ", "こやし", "にんじん"]
-    assert [monster["name"] for monster in area["monsters"]] == ["ノーコーン", "カロッテうさぎ", "青ぷに", "ウォルフ"]
+    assert [item["name"] for item in area["items"]] == [
+        "プレイン草",
+        "マジックグラス",
+        "ハチの巣",
+        "千日草",
+        "アイヒェ",
+        "こやし",
+        "にんじん",
+    ]
+    assert [monster["name"] for monster in area["monsters"]] == [
+        "ノーコーン",
+        "カロッテうさぎ",
+        "青ぷに",
+        "ウォルフ",
+    ]
 
 
 def test_structured_search_returns_all_rows():
     with sqlite3.connect(DB_PATH) as connection:
-        for kind, table in (("items", "items"), ("recipes", "recipes"), ("traits", "traits"), ("maps", "maps")):
+        for kind, table in (
+            ("items", "items"),
+            ("recipes", "recipes"),
+            ("traits", "traits"),
+            ("maps", "maps"),
+        ):
             expected = connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
             assert len(search_structured(kind)) == expected
 
@@ -78,7 +111,9 @@ def test_structured_search_returns_all_rows():
 def test_structured_search_has_no_500_row_limit(tmp_path, monkeypatch):
     database = tmp_path / "traits.sqlite3"
     with sqlite3.connect(database) as connection:
-        connection.execute("CREATE TABLE traits (trait_id INTEGER, name_ja TEXT, description_ja TEXT, cost INTEGER)")
+        connection.execute(
+            "CREATE TABLE traits (trait_id INTEGER, name_ja TEXT, description_ja TEXT, cost INTEGER)"
+        )
         connection.executemany(
             "INSERT INTO traits VALUES (?, ?, ?, ?)",
             ((index, f"特性{index}", "", index) for index in range(501)),

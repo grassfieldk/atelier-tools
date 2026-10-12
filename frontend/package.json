@@ -5,6 +5,10 @@
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit && vite build",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
     "typecheck": "tsc --noEmit",
     "dev": "vite"
   },
@@ -17,6 +21,7 @@
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.15",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.4",

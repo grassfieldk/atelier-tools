@@ -3,16 +3,13 @@ from __future__ import annotations
 import csv
 import json
 import logging
-import os
 import re
 import sqlite3
 import struct
 from collections import Counter
 from dataclasses import asdict, dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Iterator
-
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_ROOT = PROJECT_ROOT / "data"
@@ -131,16 +128,29 @@ def text_category(text: str, source_kind: str) -> str:
         return "event"
     if ASSET_RE.search(text):
         return "asset"
-    if "<CR>" in text or re.search(r"<CL[A-Z]+>", text) or len(text) >= 48 or re.search(r"[。！？.!?]$", text):
+    if (
+        "<CR>" in text
+        or re.search(r"<CL[A-Z]+>", text)
+        or len(text) >= 48
+        or re.search(r"[。！？.!?]$", text)
+    ):
         return "description"
     if IDENTIFIER_RE.fullmatch(text) and (
         re.search(r"[_:/\\.]|[a-z][A-Z]", text) or (text.isupper() and len(text) >= 3)
     ):
         return "identifier"
     language = text_language(text)
-    if language in {"ja", "zh"} and 2 <= len(text) <= 28 and not re.search(r'[\s<>「」『』【】（）()、。！？!?]', text):
+    if (
+        language in {"ja", "zh"}
+        and 2 <= len(text) <= 28
+        and not re.search(r"[\s<>「」『』【】（）()、。！？!?]", text)
+    ):
         return "name_candidate"
-    if language == "en" and 2 <= len(text) <= 48 and re.fullmatch(r"[A-Z][A-Za-z0-9'’&+\-]*(?: [A-Za-z0-9'’&+\-]+){0,7}", text):
+    if (
+        language == "en"
+        and 2 <= len(text) <= 48
+        and re.fullmatch(r"[A-Z][A-Za-z0-9'’&+\-]*(?: [A-Za-z0-9'’&+\-]+){0,7}", text)
+    ):
         return "name_candidate"
     return "text"
 
@@ -149,8 +159,12 @@ def is_text_candidate(text: str, minimum_length: int = 2) -> bool:
     if not minimum_length <= len(text) <= 2048:
         return False
     if text.isascii():
-        return len(text) >= 3 and bool(re.search(r"[A-Za-z]{2}|[0-9]{3}", text)) and text.isprintable()
-    return bool(KANA_RE.search(text) or CJK_RE.search(text)) and bool(ALLOWED_EAST_ASIAN_RE.fullmatch(text))
+        return (
+            len(text) >= 3 and bool(re.search(r"[A-Za-z]{2}|[0-9]{3}", text)) and text.isprintable()
+        )
+    return bool(KANA_RE.search(text) or CJK_RE.search(text)) and bool(
+        ALLOWED_EAST_ASIAN_RE.fullmatch(text)
+    )
 
 
 def extract_pe_strings(path: Path, relative_source: str, edition: str) -> Iterator[Record]:
@@ -238,7 +252,17 @@ def read_ebm(path: Path, relative_source: str, edition: str) -> Iterator[Record]
             "expression_id": values[5],
             "message_id": values[6 + duration1],
         }
-        yield Record("event_message", "event", "ja" if edition == "JP" else "en", text, relative_source, text_offset, None, edition, metadata)
+        yield Record(
+            "event_message",
+            "event",
+            "ja" if edition == "JP" else "en",
+            text,
+            relative_source,
+            text_offset,
+            None,
+            edition,
+            metadata,
+        )
         position = text_offset + length + 4 * duration2
 
 
@@ -252,11 +276,15 @@ def _record_tuple(record: Record) -> tuple:
         record.offset,
         record.section,
         record.edition,
-        json.dumps(record.metadata, ensure_ascii=False, separators=(",", ":")) if record.metadata else None,
+        json.dumps(record.metadata, ensure_ascii=False, separators=(",", ":"))
+        if record.metadata
+        else None,
     )
 
 
-def _insert_records(connection: sqlite3.Connection, records: Iterable[Record], counts: Counter) -> int:
+def _insert_records(
+    connection: sqlite3.Connection, records: Iterable[Record], counts: Counter
+) -> int:
     sql = "INSERT INTO records(kind,category,language,text,source,offset,section,edition,metadata_json) VALUES(?,?,?,?,?,?,?,?,?)"
     batch: list[tuple] = []
     inserted = 0
@@ -283,7 +311,14 @@ VALID_CATEGORIES = {"all", "name_candidate", "description", "event", "asset", "i
 VALID_LANGUAGES = {"all", "ja", "en", "zh", "mixed", "und"}
 
 
-def search_index(query: str = "", category: str = "all", language: str = "all", limit: int = 500, *, database: Path | None = None) -> list[dict]:
+def search_index(
+    query: str = "",
+    category: str = "all",
+    language: str = "all",
+    limit: int = 500,
+    *,
+    database: Path | None = None,
+) -> list[dict]:
     database = database or DB_PATH
     if not database.is_file():
         raise FileNotFoundError("インデックスがありません。先にデータを抽出してください。")
@@ -325,7 +360,9 @@ def read_summary() -> dict | None:
     return json.loads(SUMMARY_PATH.read_text(encoding="utf-8"))
 
 
-def search_structured(kind: str, query: str = "", language: str = "ja", *, database: Path | None = None) -> list[dict]:
+def search_structured(
+    kind: str, query: str = "", language: str = "ja", *, database: Path | None = None
+) -> list[dict]:
     from .games.meruru_backend import search_structured as search
 
     return search(kind, query, language, database=database or DB_PATH)

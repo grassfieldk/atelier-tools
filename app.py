@@ -9,12 +9,11 @@ import webbrowser
 
 import uvicorn
 
-from atelier_tools.core import configure_logging, installation_dict
-from atelier_tools.server import create_app
 from atelier_tools.controller import export_game, extract_game, migrate_game, search_game
+from atelier_tools.core import PROJECT_ROOT, configure_logging, installation_dict
 from atelier_tools.games.registry import get_game
 from atelier_tools.models import ApiContract
-from atelier_tools.core import PROJECT_ROOT
+from atelier_tools.server import create_app
 
 
 def lan_addresses() -> list[str]:
@@ -84,7 +83,13 @@ def main() -> int:
         if args.command == "scan":
             print(json.dumps(extract_game(args.game, args.game_path), ensure_ascii=False, indent=2))
         elif args.command == "search":
-            print(json.dumps(search_game(args.game, args.query, args.category, args.language, args.limit), ensure_ascii=False, indent=2))
+            print(
+                json.dumps(
+                    search_game(args.game, args.query, args.category, args.language, args.limit),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
         elif args.command == "export":
             print(json.dumps(export_game(args.game), ensure_ascii=False, indent=2))
         elif args.command == "diagnose":
@@ -96,7 +101,10 @@ def main() -> int:
         elif args.command == "schema":
             destination = PROJECT_ROOT / "frontend" / "src" / "generated" / "api.schema.json"
             destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_text(json.dumps(ApiContract.model_json_schema(), ensure_ascii=False, indent=2), encoding="utf-8")
+            destination.write_text(
+                json.dumps(ApiContract.model_json_schema(), ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
             print(destination)
         return 0
     except Exception as exception:

@@ -7,7 +7,6 @@ from pathlib import Path
 
 from .core import pe_sections, read_u32
 
-
 SYNTHESIS_STRIDE = 0xB8
 MATERIAL_STRIDE = 0xA8
 EQUIPMENT_STRIDE = 0xA0
@@ -74,7 +73,9 @@ def _collect_associations(path: Path) -> dict[int, set[int]]:
     data = path.read_bytes()
     field_pools: dict[int, set[int]] = {}
     placement_end = min(len(data), 0xE230)
-    for offset in range(0x10, placement_end - COLLECT_PLACEMENT_STRIDE + 1, COLLECT_PLACEMENT_STRIDE):
+    for offset in range(
+        0x10, placement_end - COLLECT_PLACEMENT_STRIDE + 1, COLLECT_PLACEMENT_STRIDE
+    ):
         pool_id, field_id = struct.unpack_from("<I16xI", data, offset)
         if pool_id <= 252 and 12 <= field_id <= 81:
             field_pools.setdefault(field_id, set()).add(pool_id)
@@ -96,7 +97,9 @@ def _enemy_placement_records(path: Path) -> list[list[int | None]]:
     start = ENEMY_FUNCTION_START - ENEMY_TEXT_BASE
     end = ENEMY_RECORDS_END - ENEMY_TEXT_BASE
     code = data[start:end]
-    records: list[list[int | None]] = [[None] * (ENEMY_RECORD_STRIDE // 4) for _ in range(ENEMY_RECORD_COUNT)]
+    records: list[list[int | None]] = [
+        [None] * (ENEMY_RECORD_STRIDE // 4) for _ in range(ENEMY_RECORD_COUNT)
+    ]
     position = 0
     while position < len(code) - 11:
         displacement = None
@@ -122,9 +125,13 @@ def _enemy_placement_records(path: Path) -> list[list[int | None]]:
     return records
 
 
-def _monster_associations(executable: Executable, monster_count: int, text_path: Path) -> dict[int, set[int]]:
+def _monster_associations(
+    executable: Executable, monster_count: int, text_path: Path
+) -> dict[int, set[int]]:
     monster_by_character = {
-        read_u32(executable.data, MONSTER_CHARACTER_TABLE + monster_id * MONSTER_CHARACTER_STRIDE + 4): monster_id
+        read_u32(
+            executable.data, MONSTER_CHARACTER_TABLE + monster_id * MONSTER_CHARACTER_STRIDE + 4
+        ): monster_id
         for monster_id in range(monster_count)
     }
     result: dict[int, set[int]] = {}
@@ -208,15 +215,23 @@ def find_table(executable: Executable, anchors: tuple[str, ...], stride: int) ->
                 reference = executable.data.find(pointer, reference)
                 if reference < 0:
                     break
-                if all(record_text(executable, reference + index * stride) == text for index, text in enumerate(anchors)):
+                if all(
+                    record_text(executable, reference + index * stride) == text
+                    for index, text in enumerate(anchors)
+                ):
                     return reference
                 reference += 1
         position += 1
     raise ValueError(f"データテーブルを検出できません: {', '.join(anchors)}")
 
 
-def find_locale_tables(executable: Executable, first_table: int, stride: int, count: int = 4) -> list[int]:
-    signatures = [executable.data[first_table + index * stride + 8 : first_table + index * stride + 0x30] for index in range(3)]
+def find_locale_tables(
+    executable: Executable, first_table: int, stride: int, count: int = 4
+) -> list[int]:
+    signatures = [
+        executable.data[first_table + index * stride + 8 : first_table + index * stride + 0x30]
+        for index in range(3)
+    ]
     starts = []
     position = 0
     while True:
@@ -225,7 +240,8 @@ def find_locale_tables(executable: Executable, first_table: int, stride: int, co
             break
         candidate = position - 8
         if candidate >= 0 and all(
-            executable.data[candidate + index * stride + 8 : candidate + index * stride + 0x30] == signature
+            executable.data[candidate + index * stride + 8 : candidate + index * stride + 0x30]
+            == signature
             for index, signature in enumerate(signatures)
         ):
             starts.append(candidate)
@@ -237,7 +253,12 @@ def find_locale_tables(executable: Executable, first_table: int, stride: int, co
 
 
 def find_map_tables(executable: Executable, first_table: int, count: int = 4) -> list[int]:
-    signatures = [executable.data[first_table + index * MAP_STRIDE + 0x10 : first_table + index * MAP_STRIDE + 0x38] for index in range(3)]
+    signatures = [
+        executable.data[
+            first_table + index * MAP_STRIDE + 0x10 : first_table + index * MAP_STRIDE + 0x38
+        ]
+        for index in range(3)
+    ]
     starts = []
     position = 0
     while True:
@@ -246,7 +267,10 @@ def find_map_tables(executable: Executable, first_table: int, count: int = 4) ->
             break
         candidate = position - 0x10
         if candidate >= 0 and all(
-            executable.data[candidate + index * MAP_STRIDE + 0x10 : candidate + index * MAP_STRIDE + 0x38] == signature
+            executable.data[
+                candidate + index * MAP_STRIDE + 0x10 : candidate + index * MAP_STRIDE + 0x38
+            ]
+            == signature
             for index, signature in enumerate(signatures)
         ):
             starts.append(candidate)
@@ -287,14 +311,18 @@ def _words(executable: Executable, offset: int, size: int) -> tuple[int, ...]:
     return struct.unpack_from(f"<{size // 4}I", executable.data, offset)
 
 
-def _names(executable: Executable, tables: list[int], index: int, stride: int, field_offset: int = 0) -> dict[str, str]:
+def _names(
+    executable: Executable, tables: list[int], index: int, stride: int, field_offset: int = 0
+) -> dict[str, str]:
     values = [record_text(executable, table + index * stride, field_offset) for table in tables]
     if any(value is None for value in values):
         raise ValueError(f"名称を読み取れません: index={index}")
     return {"name_ja": values[0], "name_en": values[1], "name_zh": values[3]}
 
 
-def _quality_names(executable: Executable, offset: int, stride: int, first_pointer: int = 0x50) -> list[str]:
+def _quality_names(
+    executable: Executable, offset: int, stride: int, first_pointer: int = 0x50
+) -> list[str]:
     result = []
     for field_offset in range(first_pointer, stride, 0x10):
         text = record_text(executable, offset, field_offset)
@@ -304,11 +332,28 @@ def _quality_names(executable: Executable, offset: int, stride: int, first_point
 
 
 def _append_qualities(
-    result: list[dict], executable: Executable, tables: list[int], index: int, stride: int, item_id: int, first_pointer: int = 0x50
+    result: list[dict],
+    executable: Executable,
+    tables: list[int],
+    index: int,
+    stride: int,
+    item_id: int,
+    first_pointer: int = 0x50,
 ) -> None:
-    localized = [_quality_names(executable, table + index * stride, stride, first_pointer) for table in tables]
+    localized = [
+        _quality_names(executable, table + index * stride, stride, first_pointer)
+        for table in tables
+    ]
     for rank, values in enumerate(zip(localized[0], localized[1], localized[3])):
-        result.append({"item_id": item_id, "rank": rank, "name_ja": values[0], "name_en": values[1], "name_zh": values[2]})
+        result.append(
+            {
+                "item_id": item_id,
+                "rank": rank,
+                "name_ja": values[0],
+                "name_en": values[1],
+                "name_zh": values[2],
+            }
+        )
 
 
 def _append_item_categories(result: list[dict], item_id: int, words: tuple[int, ...]) -> None:
@@ -316,7 +361,14 @@ def _append_item_categories(result: list[dict], item_id: int, words: tuple[int, 
         category_id = words[word_index]
         if category_id == 0xFFFFFFFF or category_id >= 35:
             continue
-        result.append({"item_id": item_id, "slot": slot, "category_id": category_id, "value": words[word_index + 1]})
+        result.append(
+            {
+                "item_id": item_id,
+                "slot": slot,
+                "category_id": category_id,
+                "value": words[word_index + 1],
+            }
+        )
 
 
 def _category_tables(executable: Executable) -> tuple[list[int], int]:
@@ -330,7 +382,9 @@ def _category_tables(executable: Executable) -> tuple[list[int], int]:
     return tables, count
 
 
-def extract_structured_data(japanese_path: Path, english_path: Path | None = None, *, analysis_root: Path | None = None) -> dict[str, list[dict]]:
+def extract_structured_data(
+    japanese_path: Path, english_path: Path | None = None, *, analysis_root: Path | None = None
+) -> dict[str, list[dict]]:
     executable = open_executable(japanese_path)
     synthesis = find_table(executable, ("クラフト", "フラム", "レヘルン"), SYNTHESIS_STRIDE)
     materials = find_table(executable, ("プレイン草", "マジックグラス", "うに"), MATERIAL_STRIDE)
@@ -342,14 +396,23 @@ def extract_structured_data(japanese_path: Path, english_path: Path | None = Non
     trait_tables = find_locale_tables(executable, traits_table, TRAIT_STRIDE)
     map_table = find_table(executable, ("モヨリの森", "ハンデルの森", "ハルト砦"), MAP_STRIDE)
     map_tables = find_map_tables(executable, map_table)
-    monster_table = find_table(executable, ("ノーコーン", "ユニコーン", "あばれ黒角獣"), MONSTER_STRIDE)
+    monster_table = find_table(
+        executable, ("ノーコーン", "ユニコーン", "あばれ黒角獣"), MONSTER_STRIDE
+    )
     monster_tables = find_locale_tables(executable, monster_table, MONSTER_STRIDE)
 
     category_tables, category_count = _category_tables(executable)
     categories = []
     for category_id in range(category_count):
         names = [record_text(executable, table + category_id * 8) for table in category_tables]
-        categories.append({"category_id": category_id, "name_ja": names[0], "name_en": names[1], "name_zh": names[3]})
+        categories.append(
+            {
+                "category_id": category_id,
+                "name_ja": names[0],
+                "name_en": names[1],
+                "name_zh": names[3],
+            }
+        )
 
     items = []
     item_categories = []
@@ -369,7 +432,9 @@ def extract_structured_data(japanese_path: Path, english_path: Path | None = Non
             }
         )
         _append_item_categories(item_categories, item_id, words)
-        _append_qualities(item_qualities, executable, synthesis_tables, item_id, SYNTHESIS_STRIDE, item_id)
+        _append_qualities(
+            item_qualities, executable, synthesis_tables, item_id, SYNTHESIS_STRIDE, item_id
+        )
 
     for index in range(EQUIPMENT_COUNT):
         item_id = SYNTHESIS_COUNT + index
@@ -386,7 +451,9 @@ def extract_structured_data(japanese_path: Path, english_path: Path | None = Non
                 "source_offset": offset,
             }
         )
-        _append_qualities(item_qualities, executable, equipment_tables, index, EQUIPMENT_STRIDE, item_id, 0x58)
+        _append_qualities(
+            item_qualities, executable, equipment_tables, index, EQUIPMENT_STRIDE, item_id, 0x58
+        )
 
     material_count = 0
     while True:
@@ -410,7 +477,9 @@ def extract_structured_data(japanese_path: Path, english_path: Path | None = Non
             }
         )
         _append_item_categories(item_categories, item_id, words)
-        _append_qualities(item_qualities, executable, material_tables, index, MATERIAL_STRIDE, item_id)
+        _append_qualities(
+            item_qualities, executable, material_tables, index, MATERIAL_STRIDE, item_id
+        )
 
     recipe_item_ids = {item["game_item_id"] for item in items if item["kind"] == "synthesis"}
     recipe_table = find_recipe_table(executable)
@@ -453,7 +522,10 @@ def extract_structured_data(japanese_path: Path, english_path: Path | None = Non
         if not name_ja or name_ja.startswith("予備枠"):
             break
         words = _words(executable, offset, TRAIT_STRIDE)
-        descriptions = [clean_description(record_text(executable, table + trait_id * TRAIT_STRIDE, 0x38)) for table in trait_tables]
+        descriptions = [
+            clean_description(record_text(executable, table + trait_id * TRAIT_STRIDE, 0x38))
+            for table in trait_tables
+        ]
         traits.append(
             {
                 "trait_id": trait_id,
@@ -478,9 +550,15 @@ def extract_structured_data(japanese_path: Path, english_path: Path | None = Non
         localized_alternate_descriptions = []
         for table in map_tables:
             localized_names.append(record_text(executable, table + map_id * MAP_STRIDE))
-            localized_alternate_names.append(record_text(executable, table + map_id * MAP_STRIDE, 0x08))
-            localized_descriptions.append(clean_description(record_text(executable, table + map_id * MAP_STRIDE, 0x38)))
-            localized_alternate_descriptions.append(clean_description(record_text(executable, table + map_id * MAP_STRIDE, 0x40)))
+            localized_alternate_names.append(
+                record_text(executable, table + map_id * MAP_STRIDE, 0x08)
+            )
+            localized_descriptions.append(
+                clean_description(record_text(executable, table + map_id * MAP_STRIDE, 0x38))
+            )
+            localized_alternate_descriptions.append(
+                clean_description(record_text(executable, table + map_id * MAP_STRIDE, 0x40))
+            )
         maps.append(
             {
                 "map_id": map_id,
@@ -536,21 +614,27 @@ def extract_structured_data(japanese_path: Path, english_path: Path | None = Non
 
     analysis_root = analysis_root or Path(__file__).resolve().parent.parent / "data" / "analysis"
     items_by_field = _collect_associations(analysis_root / "collect-data.bin")
-    monsters_by_field = _monster_associations(executable, len(monsters), analysis_root / "meruru-text.bin")
+    monsters_by_field = _monster_associations(
+        executable, len(monsters), analysis_root / "meruru-text.bin"
+    )
     valid_item_ids = {item["game_item_id"] for item in items}
     map_items = []
     map_monsters = []
     for map_id in range(MAP_COUNT):
         field_ids = _map_field_ids(executable, map_table, map_id)
-        item_ids = {item_id for field_id in field_ids for item_id in items_by_field.get(field_id, ())}
-        monster_ids = {monster_id for field_id in field_ids for monster_id in monsters_by_field.get(field_id, ())}
+        item_ids = {
+            item_id for field_id in field_ids for item_id in items_by_field.get(field_id, ())
+        }
+        monster_ids = {
+            monster_id
+            for field_id in field_ids
+            for monster_id in monsters_by_field.get(field_id, ())
+        }
         map_items.extend(
-            {"map_id": map_id, "item_id": item_id}
-            for item_id in sorted(item_ids & valid_item_ids)
+            {"map_id": map_id, "item_id": item_id} for item_id in sorted(item_ids & valid_item_ids)
         )
         map_monsters.extend(
-            {"map_id": map_id, "monster_id": monster_id}
-            for monster_id in sorted(monster_ids)
+            {"map_id": map_id, "monster_id": monster_id} for monster_id in sorted(monster_ids)
         )
 
     return {

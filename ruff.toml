@@ -1,0 +1,7 @@
+target-version = "py314"
+line-length = 100
+include = ["app.py", "atelier_tools/**/*.py", "scripts/**/*.py", "tests/**/*.py"]
+extend-exclude = ["tests/.work"]
+
+[lint]
+select = ["E4", "E7", "E9", "F", "I"]

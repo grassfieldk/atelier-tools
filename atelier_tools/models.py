@@ -123,10 +123,16 @@ class Dataset(Model):
                 if ingredient.reference.id not in identifiers[ingredient.reference.kind]:
                     raise ValueError(f"Unknown ingredient: {recipe.id}")
         for area in self.maps:
-            if not set(area.items) <= identifiers["items"] or not set(area.monsters) <= identifiers["monsters"]:
+            if (
+                not set(area.items) <= identifiers["items"]
+                or not set(area.monsters) <= identifiers["monsters"]
+            ):
                 raise ValueError(f"Unknown map reference: {area.id}")
         for monster in self.monsters:
-            if any(drop.item is not None and drop.item not in identifiers["items"] for drop in monster.drops):
+            if any(
+                drop.item is not None and drop.item not in identifiers["items"]
+                for drop in monster.drops
+            ):
                 raise ValueError(f"Unknown monster drop: {monster.id}")
         return self
 

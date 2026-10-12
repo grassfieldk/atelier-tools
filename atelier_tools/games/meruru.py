@@ -7,7 +7,24 @@ from contextlib import closing
 from pathlib import Path
 
 from ..core import DATA_ROOT, DB_PATH, Installation, build_index, diagnose, search_structured
-from ..models import DATA_KINDS, Cell, Dataset, GameDefinition, Ingredient, Item, LocalizedText, MapArea, Monster, NumberCell, NumberColumn, Recipe, Reference, TextCell, TextColumn, Trait
+from ..models import (
+    DATA_KINDS,
+    Cell,
+    Dataset,
+    GameDefinition,
+    Ingredient,
+    Item,
+    LocalizedText,
+    MapArea,
+    Monster,
+    NumberCell,
+    NumberColumn,
+    Recipe,
+    Reference,
+    TextCell,
+    TextColumn,
+    Trait,
+)
 from .base import ExtractionContext, ExtractionResult
 
 
@@ -21,11 +38,39 @@ class MeruruAdapter:
         title=label("メルルのアトリエ DX", "Atelier Meruru DX", "梅露露的炼金工房 DX"),
         series=label("アーランドシリーズ", "Arland Series", "亚兰德系列"),
         columns={
-            "items": [TextColumn(id="name", label=label("名称", "Name", "名称")), TextColumn(id="categories", label=label("カテゴリ", "Categories", "类别")), NumberColumn(id="level", label=label("レベル", "Level", "等级")), NumberColumn(id="value", label=label("価格", "Price", "价格"))],
-            "recipes": [TextColumn(id="name", label=label("名称", "Name", "名称")), TextColumn(id="ingredients", label=label("材料", "Ingredients", "材料")), NumberColumn(id="level", label=label("レベル", "Level", "等级")), NumberColumn(id="days", label=label("日数", "Days", "天数"))],
-            "traits": [TextColumn(id="name", label=label("名称", "Name", "名称")), NumberColumn(id="cost", label=label("コスト", "Cost", "成本")), TextColumn(id="description", label=label("説明", "Description", "说明"))],
-            "maps": [TextColumn(id="name", label=label("名称", "Name", "名称")), TextColumn(id="items", label=label("採取アイテム", "Gathering items", "采集道具")), TextColumn(id="monsters", label=label("敵", "Enemies", "敌人")), TextColumn(id="description", label=label("説明", "Description", "说明"))],
-            "monsters": [TextColumn(id="name", label=label("名称", "Name", "名称")), NumberColumn(id="level", label=label("レベル", "Level", "等级")), NumberColumn(id="hp", label=label("HP", "HP", "HP")), NumberColumn(id="attack", label=label("攻撃力", "Attack", "攻击力")), NumberColumn(id="defense", label=label("防御力", "Defense", "防御力")), NumberColumn(id="speed", label=label("素早さ", "Speed", "速度")), TextColumn(id="drops", label=label("ドロップ", "Drops", "掉落")), TextColumn(id="maps", label=label("出現地", "Locations", "出现场所"))],
+            "items": [
+                TextColumn(id="name", label=label("名称", "Name", "名称")),
+                TextColumn(id="categories", label=label("カテゴリ", "Categories", "类别")),
+                NumberColumn(id="level", label=label("レベル", "Level", "等级")),
+                NumberColumn(id="value", label=label("価格", "Price", "价格")),
+            ],
+            "recipes": [
+                TextColumn(id="name", label=label("名称", "Name", "名称")),
+                TextColumn(id="ingredients", label=label("材料", "Ingredients", "材料")),
+                NumberColumn(id="level", label=label("レベル", "Level", "等级")),
+                NumberColumn(id="days", label=label("日数", "Days", "天数")),
+            ],
+            "traits": [
+                TextColumn(id="name", label=label("名称", "Name", "名称")),
+                NumberColumn(id="cost", label=label("コスト", "Cost", "成本")),
+                TextColumn(id="description", label=label("説明", "Description", "说明")),
+            ],
+            "maps": [
+                TextColumn(id="name", label=label("名称", "Name", "名称")),
+                TextColumn(id="items", label=label("採取アイテム", "Gathering items", "采集道具")),
+                TextColumn(id="monsters", label=label("敵", "Enemies", "敌人")),
+                TextColumn(id="description", label=label("説明", "Description", "说明")),
+            ],
+            "monsters": [
+                TextColumn(id="name", label=label("名称", "Name", "名称")),
+                NumberColumn(id="level", label=label("レベル", "Level", "等级")),
+                NumberColumn(id="hp", label=label("HP", "HP", "HP")),
+                NumberColumn(id="attack", label=label("攻撃力", "Attack", "攻击力")),
+                NumberColumn(id="defense", label=label("防御力", "Defense", "防御力")),
+                NumberColumn(id="speed", label=label("素早さ", "Speed", "速度")),
+                TextColumn(id="drops", label=label("ドロップ", "Drops", "掉落")),
+                TextColumn(id="maps", label=label("出現地", "Locations", "出现场所")),
+            ],
         },
     )
 
@@ -36,31 +81,64 @@ class MeruruAdapter:
         if not context.analysis.exists() and (DATA_ROOT / "analysis").is_dir():
             shutil.copytree(DATA_ROOT / "analysis", context.analysis)
         source = context.directory / "extracted.sqlite3"
-        build_index(game_path, database=source, summary_path=context.directory / "extracted-summary.json", analysis_root=context.analysis)
+        build_index(
+            game_path,
+            database=source,
+            summary_path=context.directory / "extracted-summary.json",
+            analysis_root=context.analysis,
+        )
         return ExtractionResult(self.from_database(source), source)
 
     def from_database(self, database: Path = DB_PATH) -> Dataset:
-        with closing(sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True)) as connection:
+        with closing(
+            sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True)
+        ) as connection:
             connection.row_factory = sqlite3.Row
-            raw = {kind: [dict(row) for row in connection.execute(f"SELECT * FROM {kind}")] for kind in DATA_KINDS}
-            categories = {row["category_id"]: label(row["name_ja"], row["name_en"], row["name_zh"]) for row in connection.execute("SELECT * FROM categories")}
+            raw = {
+                kind: [dict(row) for row in connection.execute(f"SELECT * FROM {kind}")]
+                for kind in DATA_KINDS
+            }
+            categories = {
+                row["category_id"]: label(row["name_ja"], row["name_en"], row["name_zh"])
+                for row in connection.execute("SELECT * FROM categories")
+            }
             category_ids: dict[int, list[int]] = {}
             for row in connection.execute("SELECT * FROM item_categories ORDER BY slot"):
                 category_ids.setdefault(row["item_id"], []).append(row["category_id"])
-            localized = {language: {kind: {row["id"]: row for row in search_structured(kind, language=language, database=database)} for kind in DATA_KINDS} for language in ("ja", "en", "zh")}
+            localized = {
+                language: {
+                    kind: {
+                        row["id"]: row
+                        for row in search_structured(kind, language=language, database=database)
+                    }
+                    for kind in DATA_KINDS
+                }
+                for language in ("ja", "en", "zh")
+            }
         for localized_data in localized.values():
             for area in localized_data["maps"].values():
                 area["name"] = area["alternate_name"]
             representative = localized_data["maps"][7]
             for identifier in range(8, 12):
                 variant = localized_data["maps"][identifier]
-                if any(variant[key] != representative[key] for key in ("name", "alternate_name", "description", "alternate_description", "items", "monsters")):
+                if any(
+                    variant[key] != representative[key]
+                    for key in (
+                        "name",
+                        "alternate_name",
+                        "description",
+                        "alternate_description",
+                        "items",
+                        "monsters",
+                    )
+                ):
                     raise ValueError(f"Ent Forest content differs: {identifier}")
                 del localized_data["maps"][identifier]
         representative_record = next(record for record in raw["maps"] if record["map_id"] == 7)
         placement_attributes = {
             f"source_map_{record['map_id']}_{key}": value
-            for record in raw["maps"] if 7 <= record["map_id"] <= 11
+            for record in raw["maps"]
+            if 7 <= record["map_id"] <= 11
             for key, value in record.items()
         }
         representative_record.update(placement_attributes)
@@ -76,15 +154,37 @@ class MeruruAdapter:
                     else:
                         record["source_reward_1"] = record["level"]
                         record["level"] = None
-                identifier = record[{"items": "game_item_id", "recipes": "recipe_id", "traits": "trait_id", "maps": "map_id", "monsters": "monster_id"}[kind]]
+                identifier = record[
+                    {
+                        "items": "game_item_id",
+                        "recipes": "recipe_id",
+                        "traits": "trait_id",
+                        "maps": "map_id",
+                        "monsters": "monster_id",
+                    }[kind]
+                ]
                 drops = []
                 if kind == "monsters":
                     for slot in range(4):
                         source_id = record.get(f"source_drop_{slot * 9}")
                         if source_id is None or source_id == 0xFFFFFFFF:
                             continue
-                        drops.append({"item": source_id if source_id in localized["ja"]["items"] else None, "source_item_id": source_id, "slot": slot, "source_values": [record[f"source_drop_{slot * 9 + index}"] for index in range(9)]})
-                names = {language: localized[language][kind][identifier]["name"] for language in ("ja", "en", "zh")}
+                        drops.append(
+                            {
+                                "item": source_id
+                                if source_id in localized["ja"]["items"]
+                                else None,
+                                "source_item_id": source_id,
+                                "slot": slot,
+                                "source_values": [
+                                    record[f"source_drop_{slot * 9 + index}"] for index in range(9)
+                                ],
+                            }
+                        )
+                names = {
+                    language: localized[language][kind][identifier]["name"]
+                    for language in ("ja", "en", "zh")
+                }
                 cells: dict[str, dict[str, Cell]] = {}
                 for column in self.definition.columns.for_kind(kind):
                     values = {}
@@ -95,31 +195,81 @@ class MeruruAdapter:
                         if kind == "monsters" and column.type == "number":
                             value = record.get(column.id)
                         elif kind == "monsters" and column.id == "drops":
-                            value = separator.join(localized[language]["items"][drop["item"]]["name"] if drop["item"] is not None else f"#{drop['source_item_id']}" for drop in drops) or None
+                            value = (
+                                separator.join(
+                                    localized[language]["items"][drop["item"]]["name"]
+                                    if drop["item"] is not None
+                                    else f"#{drop['source_item_id']}"
+                                    for drop in drops
+                                )
+                                or None
+                            )
                         if kind == "recipes" and column.id == "ingredients":
-                            value = separator.join(f"{ingredient['name'] or '#' + str(ingredient['reference_id'])} {ingredient['quantity']}" for ingredient in row["ingredients"])
+                            value = separator.join(
+                                f"{ingredient['name'] or '#' + str(ingredient['reference_id'])} {ingredient['quantity']}"
+                                for ingredient in row["ingredients"]
+                            )
                         elif kind == "maps" and column.id in {"items", "monsters"}:
-                            value = separator.join(reference["name"] for reference in row[column.id])
+                            value = separator.join(
+                                reference["name"] for reference in row[column.id]
+                            )
                         elif kind == "maps" and column.id == "description":
                             value = value or row["alternate_description"]
                         elif kind == "monsters" and column.id == "maps":
-                            value = separator.join(
-                                area["name"]
-                                for area in localized[language]["maps"].values()
-                                if any(monster["id"] == identifier for monster in area["monsters"])
-                            ) or None
-                        values[language] = NumberCell(type="number", value=value) if column.type == "number" else TextCell(type="text", value=value)
+                            value = (
+                                separator.join(
+                                    area["name"]
+                                    for area in localized[language]["maps"].values()
+                                    if any(
+                                        monster["id"] == identifier for monster in area["monsters"]
+                                    )
+                                )
+                                or None
+                            )
+                        values[language] = (
+                            NumberCell(type="number", value=value)
+                            if column.type == "number"
+                            else TextCell(type="text", value=value)
+                        )
                     cells[column.id] = values
-                entity = {"kind": kind, "id": identifier, "name": names, "cells": cells, "attributes": record}
+                entity = {
+                    "kind": kind,
+                    "id": identifier,
+                    "name": names,
+                    "cells": cells,
+                    "attributes": record,
+                }
                 if kind == "items":
                     entity["categories"] = category_ids.get(identifier, [])
                 elif kind == "recipes":
                     entity["result"] = record["item_id"]
-                    entity["ingredients"] = [Ingredient(reference=Reference(kind="categories" if ingredient["reference_type"] == "category" else "items", id=ingredient["reference_id"]), quantity=ingredient["quantity"]) for ingredient in localized["ja"][kind][identifier]["ingredients"]]
+                    entity["ingredients"] = [
+                        Ingredient(
+                            reference=Reference(
+                                kind="categories"
+                                if ingredient["reference_type"] == "category"
+                                else "items",
+                                id=ingredient["reference_id"],
+                            ),
+                            quantity=ingredient["quantity"],
+                        )
+                        for ingredient in localized["ja"][kind][identifier]["ingredients"]
+                    ]
                 elif kind == "maps":
-                    entity["items"] = [value["id"] for value in localized["ja"][kind][identifier]["items"]]
-                    entity["monsters"] = [value["id"] for value in localized["ja"][kind][identifier]["monsters"]]
+                    entity["items"] = [
+                        value["id"] for value in localized["ja"][kind][identifier]["items"]
+                    ]
+                    entity["monsters"] = [
+                        value["id"] for value in localized["ja"][kind][identifier]["monsters"]
+                    ]
                 elif kind == "monsters":
                     entity["drops"] = drops
                 entities[kind].append(entity)
-        return Dataset(items=[Item.model_validate(value) for value in entities["items"]], recipes=[Recipe.model_validate(value) for value in entities["recipes"]], traits=[Trait.model_validate(value) for value in entities["traits"]], maps=[MapArea.model_validate(value) for value in entities["maps"]], monsters=[Monster.model_validate(value) for value in entities["monsters"]], categories=categories)
+        return Dataset(
+            items=[Item.model_validate(value) for value in entities["items"]],
+            recipes=[Recipe.model_validate(value) for value in entities["recipes"]],
+            traits=[Trait.model_validate(value) for value in entities["traits"]],
+            maps=[MapArea.model_validate(value) for value in entities["maps"]],
+            monsters=[Monster.model_validate(value) for value in entities["monsters"]],
+            categories=categories,
+        )

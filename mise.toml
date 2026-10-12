@@ -61,6 +61,34 @@ run = '".venv\Scripts\python.exe" -m pytest -q -p no:cacheprovider --basetemp te
 description = "フロントエンドの型を確認"
 run = 'npm --prefix frontend run typecheck'
 
+[tasks.format]
+description = "Python とフロントエンドを整形"
+run = [
+  '".venv\Scripts\ruff.exe" format .',
+  'npm --prefix frontend run format',
+]
+
+[tasks.format-check]
+description = "Python とフロントエンドの書式を検査"
+run = [
+  '".venv\Scripts\ruff.exe" format --check .',
+  'npm --prefix frontend run format:check',
+]
+
+[tasks.lint]
+description = "Python とフロントエンドを静的検査"
+run = [
+  '".venv\Scripts\ruff.exe" check .',
+  'npm --prefix frontend run lint',
+]
+
+[tasks.lint-fix]
+description = "Python とフロントエンドの安全な自動修正"
+run = [
+  '".venv\Scripts\ruff.exe" check --fix .',
+  'npm --prefix frontend run lint:fix',
+]
+
 [tasks.contract]
 description = "共通 API スキーマと TypeScript 型を生成"
 run = [

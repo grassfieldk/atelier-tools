@@ -9,7 +9,18 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
-from ..core import DATA_ROOT, DB_PATH, PROJECT_ROOT, SUMMARY_PATH, Installation, _insert_records, configure_logging, ensure_workspace, extract_pe_strings, read_ebm
+from ..core import (
+    DB_PATH,
+    PROJECT_ROOT,
+    SUMMARY_PATH,
+    Installation,
+    _insert_records,
+    configure_logging,
+    ensure_workspace,
+    extract_pe_strings,
+    read_ebm,
+)
+
 
 def find_game_path() -> Path | None:
     try:
@@ -17,15 +28,20 @@ def find_game_path() -> Path | None:
 
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam") as key:
             steam_path = Path(winreg.QueryValueEx(key, "SteamPath")[0])
-    except (OSError, ImportError):
+    except OSError, ImportError:
         return None
     libraries = [steam_path]
     vdf = steam_path / "steamapps" / "libraryfolders.vdf"
     if vdf.is_file():
         text = vdf.read_text(encoding="utf-8", errors="replace")
-        libraries.extend(Path(value.replace(r"\\", "\\")) for value in re.findall(r'^\s*"path"\s+"(.+)"', text, re.MULTILINE))
+        libraries.extend(
+            Path(value.replace(r"\\", "\\"))
+            for value in re.findall(r'^\s*"path"\s+"(.+)"', text, re.MULTILINE)
+        )
     for library in libraries:
-        candidate = library / "steamapps" / "common" / "Atelier Meruru ~The Apprentice of Arland~ DX"
+        candidate = (
+            library / "steamapps" / "common" / "Atelier Meruru ~The Apprentice of Arland~ DX"
+        )
         if (candidate / "A13V_x64_Release.exe").is_file():
             return candidate
     return None
@@ -34,7 +50,9 @@ def find_game_path() -> Path | None:
 def diagnose(game_path: str | Path | None = None) -> Installation:
     path = Path(game_path) if game_path else find_game_path()
     if path is None:
-        return Installation(False, None, None, None, 0, ["メルル DX のインストール先を検出できませんでした。"])
+        return Installation(
+            False, None, None, None, 0, ["メルル DX のインストール先を検出できませんでした。"]
+        )
     path = path.resolve()
     jp = path / "A13V_x64_Release.exe"
     en = path / "A13V_x64_Release_EN.exe"
@@ -52,7 +70,6 @@ def diagnose(game_path: str | Path | None = None) -> Installation:
         event_count,
         issues,
     )
-
 
 
 SCHEMA = """
@@ -171,8 +188,13 @@ CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 """
 
 
-
-def build_index(game_path: str | Path | None = None, *, database: Path | None = None, summary_path: Path | None = None, analysis_root: Path | None = None) -> dict:
+def build_index(
+    game_path: str | Path | None = None,
+    *,
+    database: Path | None = None,
+    summary_path: Path | None = None,
+    analysis_root: Path | None = None,
+) -> dict:
     from ..meruru import extract_structured_data
 
     ensure_workspace()
@@ -200,14 +222,22 @@ def build_index(game_path: str | Path | None = None, *, database: Path | None = 
         ]
         for source_path, relative, edition in sources:
             if source_path:
-                total += _insert_records(connection, extract_pe_strings(Path(source_path), relative, edition), counts)
+                total += _insert_records(
+                    connection, extract_pe_strings(Path(source_path), relative, edition), counts
+                )
         for directory, edition in (("event", "JP"), ("event_EN", "EN")):
             event_root = root / "Event" / directory
             if not event_root.is_dir():
                 continue
             for path in event_root.rglob("*.ebm"):
-                total += _insert_records(connection, read_ebm(path, str(path.relative_to(root)), edition), counts)
-        structured = extract_structured_data(Path(installation.japanese_exe), Path(installation.english_exe) if installation.english_exe else None, analysis_root=analysis_root)
+                total += _insert_records(
+                    connection, read_ebm(path, str(path.relative_to(root)), edition), counts
+                )
+        structured = extract_structured_data(
+            Path(installation.japanese_exe),
+            Path(installation.english_exe) if installation.english_exe else None,
+            analysis_root=analysis_root,
+        )
         connection.executemany(
             "INSERT INTO categories(category_id,name_ja,name_en,name_zh) "
             "VALUES(:category_id,:name_ja,:name_en,:name_zh)",
@@ -248,7 +278,10 @@ def build_index(game_path: str | Path | None = None, *, database: Path | None = 
         connection.executemany(
             "INSERT INTO monsters(monster_id,name_ja,name_en,name_zh,level,details_json,source_offset) "
             "VALUES(:monster_id,:name_ja,:name_en,:name_zh,:level,:details_json,:source_offset)",
-            [{**monster, "details_json": json.dumps(monster, ensure_ascii=False)} for monster in structured["monsters"]],
+            [
+                {**monster, "details_json": json.dumps(monster, ensure_ascii=False)}
+                for monster in structured["monsters"]
+            ],
         )
         connection.executemany(
             "INSERT INTO map_items(map_id,item_id) VALUES(:map_id,:item_id)",
@@ -299,13 +332,16 @@ def build_index(game_path: str | Path | None = None, *, database: Path | None = 
         },
         "database": str(destination.relative_to(PROJECT_ROOT)),
     }
-    summary_destination.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+    summary_destination.write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     logging.info("Index complete: %d records", total)
     return summary
 
 
-
-def search_structured(kind: str, query: str = "", language: str = "ja", *, database: Path | None = None) -> list[dict]:
+def search_structured(
+    kind: str, query: str = "", language: str = "ja", *, database: Path | None = None
+) -> list[dict]:
     database = database or DB_PATH
     if not database.is_file():
         raise FileNotFoundError("インデックスがありません。先にデータを抽出してください。")
@@ -415,5 +451,3 @@ def search_structured(kind: str, query: str = "", language: str = "ja", *, datab
         return result
     finally:
         connection.close()
-
-

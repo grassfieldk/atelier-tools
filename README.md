@@ -66,6 +66,13 @@ CSV の出力先は `data/{game_id}/export/` となる
 ```powershell
 # 開発用 API とフロントエンドを起動
 mise run dev
+# ソースコードを整形
+mise run format
+# コードと書式を検査
+mise run lint
+mise run format-check
+# 安全な範囲で指摘を自動修正
+mise run lint-fix
 # フロントエンドをビルド
 mise run frontend-build
 # データモデルの変更後に型とスキーマを再生成
