@@ -8,9 +8,9 @@ from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
 from .core import PROJECT_ROOT
-from .controller import get_data, list_games, search_game
+from .controller import get_data, get_detail, list_games, search_game
 from .games.registry import get_game
-from .models import DataKind, DataResponse, GamesResponse, Language
+from .models import DataKind, DataResponse, DetailResponse, GamesResponse, Language
 
 
 WEB_ROOT = PROJECT_ROOT / "web"
@@ -59,6 +59,19 @@ def create_app() -> FastAPI:
             return await run_in_threadpool(get_data, game_id, kind, language, q)
         except FileNotFoundError as exception:
             raise HTTPException(status_code=404, detail=str(exception)) from exception
+
+    @app.get("/api/games/{game_id}/data/{kind}/{identifier}")
+    async def game_detail(game_id: str, kind: DataKind, identifier: int, language: Language = "ja") -> DetailResponse:
+        require_game(game_id)
+        try:
+            return await run_in_threadpool(get_detail, game_id, kind, identifier, language)
+        except FileNotFoundError as exception:
+            raise HTTPException(status_code=404, detail=str(exception)) from exception
+
+    @app.get("/games/{game_id}/{kind}/{identifier}")
+    async def detail_page(game_id: str, kind: DataKind, identifier: int) -> FileResponse:
+        require_game(game_id)
+        return FileResponse(WEB_ROOT / "index.html", headers={"Cache-Control": "no-store"})
 
     @app.get("/")
     async def index() -> FileResponse:

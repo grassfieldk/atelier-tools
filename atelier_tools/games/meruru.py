@@ -48,6 +48,23 @@ class MeruruAdapter:
             for row in connection.execute("SELECT * FROM item_categories ORDER BY slot"):
                 category_ids.setdefault(row["item_id"], []).append(row["category_id"])
             localized = {language: {kind: {row["id"]: row for row in search_structured(kind, language=language, database=database)} for kind in DATA_KINDS} for language in ("ja", "en", "zh")}
+        for localized_data in localized.values():
+            for area in localized_data["maps"].values():
+                area["name"] = area["alternate_name"]
+            representative = localized_data["maps"][7]
+            for identifier in range(8, 12):
+                variant = localized_data["maps"][identifier]
+                if any(variant[key] != representative[key] for key in ("name", "alternate_name", "description", "alternate_description", "items", "monsters")):
+                    raise ValueError(f"Ent Forest content differs: {identifier}")
+                del localized_data["maps"][identifier]
+        representative_record = next(record for record in raw["maps"] if record["map_id"] == 7)
+        placement_attributes = {
+            f"source_map_{record['map_id']}_{key}": value
+            for record in raw["maps"] if 7 <= record["map_id"] <= 11
+            for key, value in record.items()
+        }
+        representative_record.update(placement_attributes)
+        raw["maps"] = [record for record in raw["maps"] if record["map_id"] not in range(8, 12)]
         entities: dict[str, list[dict]] = {}
         for kind in DATA_KINDS:
             entities[kind] = []
@@ -83,13 +100,11 @@ class MeruruAdapter:
                             value = separator.join(f"{ingredient['name'] or '#' + str(ingredient['reference_id'])} {ingredient['quantity']}" for ingredient in row["ingredients"])
                         elif kind == "maps" and column.id in {"items", "monsters"}:
                             value = separator.join(reference["name"] for reference in row[column.id])
-                        elif kind == "maps" and column.id == "name" and row["alternate_name"] and row["alternate_name"] != value:
-                            value = f"{value} / {row['alternate_name']}"
                         elif kind == "maps" and column.id == "description":
                             value = value or row["alternate_description"]
                         elif kind == "monsters" and column.id == "maps":
                             value = separator.join(
-                                area["name"] if not area["alternate_name"] or area["alternate_name"] == area["name"] else f"{area['name']} / {area['alternate_name']}"
+                                area["name"]
                                 for area in localized[language]["maps"].values()
                                 if any(monster["id"] == identifier for monster in area["monsters"])
                             ) or None

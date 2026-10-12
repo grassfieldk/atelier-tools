@@ -119,6 +119,125 @@
       "title": "Dataset",
       "type": "object"
     },
+    "DetailLink": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "items",
+            "recipes",
+            "traits",
+            "maps",
+            "monsters"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "quantity": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quantity"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "name"
+      ],
+      "title": "DetailLink",
+      "type": "object"
+    },
+    "DetailResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "game": {
+          "$ref": "#/$defs/GameSummary"
+        },
+        "kind": {
+          "enum": [
+            "items",
+            "recipes",
+            "traits",
+            "maps",
+            "monsters"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "columns": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "number": "#/$defs/DisplayNumberColumn",
+                "text": "#/$defs/DisplayTextColumn"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/DisplayTextColumn"
+              },
+              {
+                "$ref": "#/$defs/DisplayNumberColumn"
+              }
+            ]
+          },
+          "title": "Columns",
+          "type": "array"
+        },
+        "item": {
+          "$ref": "#/$defs/DisplayRow"
+        },
+        "related": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/$defs/DetailLink"
+            },
+            "type": "array"
+          },
+          "propertyNames": {
+            "enum": [
+              "items",
+              "recipes",
+              "traits",
+              "maps",
+              "monsters"
+            ]
+          },
+          "title": "Related",
+          "type": "object"
+        }
+      },
+      "required": [
+        "game",
+        "kind",
+        "name",
+        "columns",
+        "item",
+        "related"
+      ],
+      "title": "DetailResponse",
+      "type": "object"
+    },
     "DisplayCategory": {
       "additionalProperties": false,
       "properties": {
@@ -163,6 +282,60 @@
       "title": "DisplayNumberColumn",
       "type": "object"
     },
+    "DisplayReference": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "items",
+                "recipes",
+                "traits",
+                "maps",
+                "monsters"
+              ],
+              "type": "string"
+            },
+            {
+              "const": "categories",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Kind"
+        },
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "quantity": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quantity"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "name"
+      ],
+      "title": "DisplayReference",
+      "type": "object"
+    },
     "DisplayRow": {
       "additionalProperties": false,
       "properties": {
@@ -189,6 +362,16 @@
             ]
           },
           "title": "Cells",
+          "type": "object"
+        },
+        "references": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/$defs/DisplayReference"
+            },
+            "type": "array"
+          },
+          "title": "References",
           "type": "object"
         }
       },
@@ -1050,6 +1233,9 @@
     "data": {
       "$ref": "#/$defs/DataResponse"
     },
+    "detail": {
+      "$ref": "#/$defs/DetailResponse"
+    },
     "dataset": {
       "$ref": "#/$defs/Dataset"
     },
@@ -1060,6 +1246,7 @@
   "required": [
     "games",
     "data",
+    "detail",
     "dataset",
     "definition"
   ],

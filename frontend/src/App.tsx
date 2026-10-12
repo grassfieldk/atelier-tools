@@ -5,6 +5,9 @@ import {
   Button,
   Container,
   Group,
+  Loader,
+  Popover,
+  ScrollArea,
   Select,
   SegmentedControl,
   Stack,
@@ -26,7 +29,7 @@ import {
   type ColumnDef,
 } from '@tanstack/react-table';
 
-import { numberValue, textValue, dataKinds, requestData, requestGames, type DataKind, type Language, type DataResponse, type DisplayRow } from './api';
+import { numberValue, textValue, dataKinds, requestData, requestDetail, requestGames, type DataKind, type Language, type DataResponse, type DetailResponse, type DisplayRow } from './api';
 import type { GameSummary } from './generated/api';
 
 type Translation = {
@@ -172,7 +175,76 @@ function HomePage({ language, onLanguageChange }: { language: Language; onLangua
   );
 }
 
-function DataTable({ data, text }: { data: DataResponse; text: (key: keyof Translation, values?: Record<string, string>) => string }) {
+function detailPath(gameId: string, kind: DataKind, identifier: number): string {
+  return `/games/${encodeURIComponent(gameId)}/${kind}/${identifier}`;
+}
+
+function CategoryBadge({ name, gameId, identifier, language }: { name: string; gameId?: string; identifier?: number; language?: Language }) {
+  const [opened, setOpened] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [result, setResult] = useState<{ scope: string; items?: DisplayRow[]; error?: string } | null>(null);
+  const scope = `${gameId}:${identifier}:${language}:${attempt}`;
+  useEffect(() => {
+    if (!opened || gameId === undefined || identifier === undefined || language === undefined) return;
+    let cancelled = false;
+    requestData(gameId, 'items', language, '')
+      .then((data) => {
+        const items = data.items.filter((row) => row.references?.categories?.some((reference) => reference.kind === 'categories' && reference.id === identifier));
+        if (!cancelled) setResult({ scope, items });
+      })
+      .catch((reason: Error) => { if (!cancelled) setResult({ scope, error: reason.message }); });
+    return () => { cancelled = true; };
+  }, [opened, gameId, identifier, language, scope]);
+  const label = name.replace(/^[（(](.*)[）)]$/, '$1').trim();
+  const style = { maxWidth: '100%', height: 'auto', whiteSpace: 'normal', overflowWrap: 'anywhere' } as const;
+  if (gameId === undefined || identifier === undefined || language === undefined) return <Badge variant="light" tt="none" style={style}>{label}</Badge>;
+  const current = result?.scope === scope ? result : null;
+  return <Popover opened={opened} onChange={setOpened} position="bottom-start" width={300} withinPortal>
+    <Popover.Target><Badge component="button" type="button" variant="light" tt="none" style={{ ...style, cursor: 'pointer' }} aria-expanded={opened} aria-haspopup="dialog" onClick={() => setOpened((value) => !value)}>{label}</Badge></Popover.Target>
+    <Popover.Dropdown>{opened && <Stack gap="xs">
+      <Text fw={600}>{label}</Text>
+      {current?.error ? <><Text c="red" role="alert">{current.error}</Text><Button size="xs" variant="subtle" onClick={() => setAttempt((value) => value + 1)}>{({ ja: '再試行', en: 'Retry', zh: '重试' } satisfies Record<Language, string>)[language]}</Button></> : !current?.items ? <Loader size="sm" /> : <>
+        <Text size="xs" c="dimmed">{translate(language, 'count', { count: String(current.items.length) })}</Text>
+        <ScrollArea.Autosize mah={300}><Stack gap="xs">{current.items.length ? current.items.map((item) => <Anchor key={item.id} href={detailPath(gameId, 'items', item.id)}>{item.cells.name?.value ?? `#${item.id}`}</Anchor>) : <Text size="sm">{translate(language, 'noData')}</Text>}</Stack></ScrollArea.Autosize>
+      </>}
+    </Stack>}</Popover.Dropdown>
+  </Popover>;
+}
+
+function DataCell({ gameId, kind, row, columnId, language, referenceLimit }: { gameId: string; kind: DataKind; row: DisplayRow; columnId: string; language: Language; referenceLimit?: number }) {
+  const cell = row.cells[columnId];
+  if (columnId === 'name') return <Anchor href={detailPath(gameId, kind, row.id)}>{cell?.value ?? ''}</Anchor>;
+  const references = row.references?.[columnId];
+  if (columnId === 'categories' && cell?.type === 'text') {
+    if (references) return <Group gap={4}>{references.map((reference) => <CategoryBadge key={reference.id} name={reference.name} gameId={gameId} identifier={reference.id} language={language} />)}</Group>;
+    const categories = cell.value?.split('、').map((category) => category.trim()).filter(Boolean) ?? [];
+    return <Group gap={4}>{[...new Set(categories)].map((category) => <CategoryBadge key={category} name={category} />)}</Group>;
+  }
+  const suffix = ({ ja: 'など', en: 'and more', zh: '等' } satisfies Record<Language, string>)[language];
+  if (references?.length) return <Group gap="xs">{references.slice(0, referenceLimit).map((reference) => <span key={`${reference.kind}:${reference.id}:${reference.quantity}`}>
+    {reference.kind === 'categories' ? <CategoryBadge name={reference.name} gameId={gameId} identifier={reference.id} language={language} /> : reference.kind !== null ? <Anchor href={detailPath(gameId, reference.kind, reference.id)}>{reference.name}</Anchor> : reference.name}
+    {reference.quantity !== null && ` ${reference.quantity}`}
+  </span>)}{referenceLimit !== undefined && references.length > referenceLimit && <span>{suffix}</span>}</Group>;
+  if (referenceLimit !== undefined && cell?.type === 'text' && cell.value) {
+    const values = cell.value.split(language === 'en' ? ', ' : '、');
+    return values.slice(0, referenceLimit).join(language === 'en' ? ', ' : '、') + (values.length > referenceLimit ? ` ${suffix}` : '');
+  }
+  return cell?.value ?? '';
+}
+
+const listColumns: Partial<Record<DataKind, string[]>> = {
+  items: ['name', 'categories', 'level'],
+  maps: ['name', 'items', 'monsters'],
+  monsters: ['name', 'level', 'drops'],
+};
+
+function DataTable({ gameId, data, text, language }: { gameId: string; data: DataResponse; language: Language; text: (key: keyof Translation, values?: Record<string, string>) => string }) {
+  const displayColumns = useMemo(() => {
+    const selectedColumns = listColumns[data.kind];
+    return selectedColumns
+      ? selectedColumns.flatMap((identifier) => data.columns.filter((column) => column.id === identifier))
+      : data.columns;
+  }, [data.kind, data.columns]);
   const visibleCategories = new Set(data.items.flatMap((row) => {
     const cell = row.cells.categories;
     return cell?.type === 'text' ? cell.value?.split('、').map((category) => category.trim()).filter(Boolean) ?? [] : [];
@@ -180,14 +252,14 @@ function DataTable({ data, text }: { data: DataResponse; text: (key: keyof Trans
   const categoryOptions = [...(data.categories ?? [])].sort((first, second) => first.id - second.id)
     .filter((category) => visibleCategories.has(category.name))
     .map((category) => ({ value: category.name, label: category.name.replace(/^[（(](.*)[）)]$/, '$1').trim() }));
-  const columns = useMemo<DataColumn[]>(() => data.columns.map((column) => ({
+  const columns = useMemo<DataColumn[]>(() => displayColumns.map((column) => ({
     id: column.id,
     header: column.label,
     accessorFn: (row) => column.type === 'number' ? numberValue(row, column) : textValue(row, column),
     filterFn: 'includesString',
     sortFn: column.type === 'number' ? 'basic' : 'alphanumeric',
     sortUndefined: 'last',
-  })), [data.columns]);
+  })), [displayColumns]);
   const table = useTable({ features: dataTableFeatures, data: data.items, columns, getRowId: (item) => String(item.id) });
   const visibleRows = table.getRowModel().rows;
   return <Stack gap="xs" flex={1} mih={0} miw={0}>
@@ -201,22 +273,20 @@ function DataTable({ data, text }: { data: DataResponse; text: (key: keyof Trans
       </Table.Th>)}</Table.Tr>
       <Table.Tr>{table.getAllLeafColumns().map((column) => <Table.Th key={column.id}>
         {column.id === 'categories'
-          ? <Select size="xs" data={categoryOptions} value={String(column.getFilterValue() ?? '') || null} onChange={(value) => column.setFilterValue(value ?? '')} clearable searchable placeholder={text('filterPlaceholder')} aria-label={text('filterColumn', { column: String(column.columnDef.header) })} />
+          ? <Select size="xs" data={categoryOptions} renderOption={({ option }) => <CategoryBadge name={option.label} />} value={String(column.getFilterValue() ?? '') || null} onChange={(value) => column.setFilterValue(value ?? '')} clearable searchable placeholder={text('filterPlaceholder')} aria-label={text('filterColumn', { column: String(column.columnDef.header) })} />
           : <TextInput size="xs" value={String(column.getFilterValue() ?? '')} onChange={(event) => { const value = event.currentTarget.value; column.setFilterValue(value); }} placeholder={text('filterPlaceholder')} aria-label={text('filterColumn', { column: String(column.columnDef.header) })} />}
       </Table.Th>)}</Table.Tr>
     </Table.Thead>
-    <Table.Tbody>{visibleRows.length ? visibleRows.map((row) => <Table.Tr key={row.id}>{data.columns.map((column) => {
-      const cell = row.original.cells[column.id];
-      return <Table.Td key={column.id} style={{ whiteSpace: 'pre-line' }}>{column.id === 'categories' && cell?.type === 'text'
-        ? <Group gap={4}>{[...new Set(cell.value?.split('、').map((category) => category.trim()).filter(Boolean))].map((category) => <Badge key={category} variant="light" tt="none" style={{ maxWidth: '100%', height: 'auto', whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{category.replace(/^[（(](.*)[）)]$/, '$1').trim()}</Badge>)}</Group>
-        : cell?.value ?? ''}</Table.Td>;
-    })}</Table.Tr>) : <Table.Tr><Table.Td colSpan={columns.length}>{text('noData')}</Table.Td></Table.Tr>}</Table.Tbody>
+    <Table.Tbody>{visibleRows.length ? visibleRows.map((row) => <Table.Tr key={row.id}>{displayColumns.map((column) => <Table.Td key={column.id} style={{ whiteSpace: column.id === 'name' ? 'nowrap' : 'pre-line' }}><DataCell gameId={gameId} kind={data.kind} row={row.original} columnId={column.id} language={language} referenceLimit={data.kind === 'maps' && column.id === 'items' ? 5 : undefined} /></Table.Td>)}</Table.Tr>) : <Table.Tr><Table.Td colSpan={columns.length}>{text('noData')}</Table.Td></Table.Tr>}</Table.Tbody>
     </Table></Table.ScrollContainer>
   </Stack>;
 }
 
 function GamePage({ gameId, language, onLanguageChange }: { gameId: string; language: Language; onLanguageChange: (language: Language) => void }) {
-  const [kind, setKind] = useState<DataKind>('items');
+  const [kind, setKind] = useState<DataKind>(() => {
+    const requested = new URLSearchParams(window.location.search).get('kind');
+    return dataKinds.find((value) => value === requested) ?? 'items';
+  });
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
   const [title, setTitle] = useState('');
@@ -272,14 +342,43 @@ function GamePage({ gameId, language, onLanguageChange }: { gameId: string; lang
           </Group>
         </form>
         <Text size="sm" c="dimmed">{text('count', { count: (data?.count ?? 0).toLocaleString() })}</Text>
-        {error ? <Text c="red">{error}</Text> : data ? <DataTable key={`${kind}-${language}`} data={data} text={text} /> : <Text>{text('noData')}</Text>}
+        {error ? <Text c="red">{error}</Text> : data ? <DataTable key={`${kind}-${language}`} gameId={gameId} data={data} text={text} language={language} /> : <Text>{text('noData')}</Text>}
       </Stack>
     </Container>
   );
 }
 
+function DetailPage({ gameId, kind, identifier, language, onLanguageChange }: { gameId: string; kind: DataKind; identifier: number; language: Language; onLanguageChange: (language: Language) => void }) {
+  const [result, setResult] = useState<{ data?: DetailResponse; error?: string; language: Language } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    requestDetail(gameId, kind, identifier, language)
+      .then((data) => { if (!cancelled) setResult({ data, language }); })
+      .catch((reason: Error) => { if (!cancelled) setResult({ error: reason.message, language }); });
+    return () => { cancelled = true; };
+  }, [gameId, kind, identifier, language]);
+  const current = result?.language === language ? result : null;
+  const data = current?.data;
+  return <Container size="md" py="xl"><Stack gap="lg">
+    <Header language={language} onLanguageChange={onLanguageChange} />
+    <Group gap="xs"><Anchor href={`/games/${encodeURIComponent(gameId)}`}>{data?.game.title ?? gameId}</Anchor><Text c="dimmed">/</Text><Anchor href={`/games/${encodeURIComponent(gameId)}?kind=${kind}`}>{translations[language][kind]}</Anchor></Group>
+    {current?.error ? <Text c="red" role="alert">{current.error}</Text> : !data ? <Loader size="sm" /> : <>
+      <Title order={1} style={{ overflowWrap: 'anywhere' }}>{data.name}</Title>
+      <Text size="sm" c="dimmed">ID: {data.item.id}</Text>
+      <Table><Table.Tbody>{data.columns.filter((column) => column.id !== 'name').map((column) => <Table.Tr key={column.id}><Table.Th w="30%" style={{ verticalAlign: 'top' }}>{column.label}</Table.Th><Table.Td style={{ whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}><DataCell gameId={gameId} kind={kind} row={data.item} columnId={column.id} language={language} /></Table.Td></Table.Tr>)}</Table.Tbody></Table>
+      {dataKinds.map((category) => data.related[category]?.length ? <Stack key={category} gap="xs">
+        <Title order={2} size="h4">{translations[language][category]}</Title>
+        {data.related[category].map((link) => <Group key={link.id} gap="xs"><Anchor href={detailPath(gameId, link.kind, link.id)} style={{ overflowWrap: 'anywhere' }}>{link.name}</Anchor>{link.quantity !== null && <Text size="sm">{translate(language, 'quantity', { count: String(link.quantity) })}</Text>}</Group>)}
+      </Stack> : null)}
+    </>}
+  </Stack></Container>;
+}
+
 export function App() {
   const [language, setLanguage] = useLanguage();
+  const detail = window.location.pathname.match(/^\/games\/([^/]+)\/([^/]+)\/(\d+)\/?$/);
+  const detailKind = dataKinds.find((kind) => kind === detail?.[2]);
+  if (detail && detailKind) return <DetailPage gameId={decodeURIComponent(detail[1])} kind={detailKind} identifier={Number(detail[3])} language={language} onLanguageChange={setLanguage} />;
   const match = window.location.pathname.match(/^\/games\/([^/]+)\/?$/);
   return match ? <GamePage gameId={decodeURIComponent(match[1])} language={language} onLanguageChange={setLanguage} /> : <HomePage language={language} onLanguageChange={setLanguage} />;
 }

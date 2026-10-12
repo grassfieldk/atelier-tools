@@ -8,8 +8,9 @@ from pathlib import Path
 from .core import search_index
 from .games.base import ExtractionContext
 from .games.registry import get_game, registered_games
-from .models import DATA_KINDS, DataKind, DataResponse, DisplayNumberColumn, DisplayTextColumn, DisplayRow, GamesResponse, GameSummary, Language
+from .models import DATA_KINDS, DataKind, DataResponse, DetailLink, DetailResponse, DisplayNumberColumn, DisplayTextColumn, DisplayRow, GamesResponse, GameSummary, Language
 from .storage import database_path, game_directory, load_dataset, save_dataset
+from .models import Dataset, Entity, DisplayReference, Item, Recipe, MapArea, Monster
 
 
 def migrate_game(game_id: str) -> dict:
@@ -51,14 +52,78 @@ def extract_game(game_id: str, game_path: str | Path | None = None) -> dict:
     return save_dataset(adapter.definition, result.dataset, result.source_database)
 
 
+def display_row(dataset: Dataset, entity: Entity, language: Language) -> DisplayRow:
+    references: dict[str, list[DisplayReference]] = {}
+
+    def reference(kind: DataKind, identifier: int, quantity: float | None = None) -> DisplayReference:
+        target = next((value for value in getattr(dataset, kind) if value.id == identifier), None)
+        return DisplayReference(kind=kind if target is not None else None, id=identifier, name=getattr(target.name, language) if target is not None else f"#{identifier}", quantity=quantity)
+
+    if isinstance(entity, Recipe):
+        references["name"] = [reference("items", entity.result)]
+        references["ingredients"] = [
+            DisplayReference(kind="categories", id=ingredient.reference.id, name=getattr(dataset.categories[ingredient.reference.id], language), quantity=ingredient.quantity)
+            if ingredient.reference.kind == "categories" else reference(ingredient.reference.kind, ingredient.reference.id, ingredient.quantity)
+            for ingredient in entity.ingredients
+        ]
+    if isinstance(entity, MapArea):
+        references["items"] = [reference("items", identifier) for identifier in entity.items]
+        references["monsters"] = [reference("monsters", identifier) for identifier in entity.monsters]
+    if isinstance(entity, Monster):
+        references["drops"] = [reference("items", drop.item if drop.item is not None else drop.source_item_id) for drop in entity.drops]
+        references["maps"] = [reference("maps", area.id) for area in dataset.maps if entity.id in area.monsters]
+    if isinstance(entity, Item):
+        references["categories"] = [DisplayReference(kind="categories", id=identifier, name=getattr(dataset.categories[identifier], language)) for identifier in entity.categories]
+    return DisplayRow(id=entity.id, cells={key: values[language] for key, values in entity.cells.items()}, references=references)
+
+
 def get_data(game_id: str, kind: DataKind, language: Language, query: str = "") -> DataResponse:
     get_game(game_id)
     definition, dataset = load_dataset(game_id)
-    rows = [DisplayRow(id=entity.id, cells={key: values[language] for key, values in entity.cells.items()}) for entity in getattr(dataset, kind)]
+    rows = [display_row(dataset, entity, language) for entity in getattr(dataset, kind)]
     if query:
         normalized = query.casefold()
         rows = [row for row in rows if any(normalized in str(cell.value or "").casefold() for cell in row.cells.values())]
     return DataResponse(kind=kind, count=len(rows), columns=[DisplayNumberColumn(id=column.id, label=getattr(column.label, language), type="number") if column.type == "number" else DisplayTextColumn(id=column.id, label=getattr(column.label, language), type="text") for column in definition.columns.for_kind(kind)], items=rows, categories=[{"id": identifier, "name": getattr(name, language)} for identifier, name in sorted(dataset.categories.items())])
+
+
+def get_detail(game_id: str, kind: DataKind, identifier: int, language: Language) -> DetailResponse:
+    get_game(game_id)
+    definition, dataset = load_dataset(game_id)
+    entity = next((value for value in getattr(dataset, kind) if value.id == identifier), None)
+    if entity is None:
+        raise FileNotFoundError("データが見つかりません。")
+    related: dict[DataKind, list[DetailLink]] = {category: [] for category in DATA_KINDS}
+
+    def add(category: DataKind, target: int, quantity: float | None = None) -> None:
+        value = next((value for value in getattr(dataset, category) if value.id == target), None)
+        if value is not None and not (category == kind and target == identifier) and not any(link.id == target for link in related[category]):
+            related[category].append(DetailLink(kind=category, id=target, name=getattr(value.name, language), quantity=quantity))
+
+    for recipe in dataset.recipes:
+        if kind == "recipes" and recipe.id == identifier:
+            add("items", recipe.result)
+            for ingredient in recipe.ingredients:
+                if ingredient.reference.kind == "items":
+                    add("items", ingredient.reference.id, ingredient.quantity)
+        if kind == "items" and (recipe.result == identifier or any(ingredient.reference.kind == "items" and ingredient.reference.id == identifier for ingredient in recipe.ingredients)):
+            add("recipes", recipe.id)
+    for area in dataset.maps:
+        if kind == "maps" and area.id == identifier:
+            for target in area.items:
+                add("items", target)
+            for target in area.monsters:
+                add("monsters", target)
+        if (kind == "items" and identifier in area.items) or (kind == "monsters" and identifier in area.monsters):
+            add("maps", area.id)
+    for monster in dataset.monsters:
+        for drop in monster.drops:
+            if kind == "monsters" and monster.id == identifier and drop.item is not None:
+                add("items", drop.item)
+            if kind == "items" and drop.item == identifier:
+                add("monsters", monster.id)
+    data = get_data(game_id, kind, language)
+    return DetailResponse(game=GameSummary(id=game_id, title=getattr(definition.title, language), series=getattr(definition.series, language)), kind=kind, name=getattr(entity.name, language), columns=data.columns, item=display_row(dataset, entity, language), related=related)
 
 
 def search_game(game_id: str, query: str, category: str, language: str, limit: int) -> list[dict]:

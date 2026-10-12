@@ -30,7 +30,7 @@ depends = ["dev-api", "dev-ui"]
 
 [tasks.dev-api]
 description = "開発用 API を起動"
-run = '".venv\Scripts\python.exe" -m uvicorn atelier_tools.server:create_app --factory --host 127.0.0.1 --port 47831 --reload'
+run = '".venv\Scripts\python.exe" -u scripts/dev_api.py'
 
 [tasks.dev-ui]
 description = "Vite 開発サーバーを起動"

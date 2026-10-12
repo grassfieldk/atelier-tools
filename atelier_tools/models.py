@@ -157,9 +157,17 @@ class GameDefinition(Model):
         return self
 
 
+class DisplayReference(Model):
+    kind: DataKind | Literal["categories"] | None
+    id: int
+    name: str
+    quantity: float | None = None
+
+
 class DisplayRow(Model):
     id: int
     cells: dict[str, Cell]
+    references: dict[str, list[DisplayReference]] = Field(default_factory=dict)
 
 
 class DisplayTextColumn(Model):
@@ -200,8 +208,25 @@ class GamesResponse(Model):
     items: list[GameSummary]
 
 
+class DetailLink(Model):
+    kind: DataKind
+    id: int
+    name: str
+    quantity: float | None = None
+
+
+class DetailResponse(Model):
+    game: GameSummary
+    kind: DataKind
+    name: str
+    columns: list[DisplayColumn]
+    item: DisplayRow
+    related: dict[DataKind, list[DetailLink]]
+
+
 class ApiContract(Model):
     games: GamesResponse
     data: DataResponse
+    detail: DetailResponse
     dataset: Dataset
     definition: GameDefinition

@@ -1,8 +1,8 @@
 import Ajv from 'ajv/dist/2020';
 import schema from './generated/api.schema.json';
-import type { DataResponse, GamesResponse, DisplayRow, Dataset, DisplayNumberColumn, DisplayTextColumn } from './generated/api';
+import type { DataResponse, DetailResponse, GamesResponse, DisplayRow, Dataset, DisplayNumberColumn, DisplayTextColumn } from './generated/api';
 
-export type { DataResponse, GamesResponse, DisplayRow };
+export type { DataResponse, DetailResponse, GamesResponse, DisplayRow };
 export type DataKind = DataResponse['kind'];
 export type Language = 'ja' | 'en' | 'zh';
 export type EntityByKind = Pick<Dataset, DataKind>;
@@ -25,6 +25,7 @@ const ajv = new Ajv({ strict: false });
 ajv.addSchema({ ...schema, $id: 'atelier-api' });
 const validateGames = ajv.compile<GamesResponse>({ $ref: 'atelier-api#/$defs/GamesResponse' });
 const validateData = ajv.compile<DataResponse>({ $ref: 'atelier-api#/$defs/DataResponse' });
+const validateDetail = ajv.compile<DetailResponse>({ $ref: 'atelier-api#/$defs/DetailResponse' });
 
 async function fetchJson(path: string): Promise<unknown> {
   const response = await fetch(path);
@@ -32,6 +33,15 @@ async function fetchJson(path: string): Promise<unknown> {
   if (!response.ok) {
     const message = typeof payload === 'object' && payload !== null && 'detail' in payload ? String(payload.detail) : `HTTP ${response.status}`;
     throw new Error(message);
+  }
+  return payload;
+}
+
+export async function requestDetail(gameId: string, kind: DataKind, identifier: number, language: Language): Promise<DetailResponse> {
+  const payload = await fetchJson(`/api/games/${encodeURIComponent(gameId)}/data/${kind}/${identifier}?language=${language}`);
+  if (!validateDetail(payload) || payload.kind !== kind || payload.item.id !== identifier || payload.game.id !== gameId) throw new Error('Invalid detail response');
+  for (const column of payload.columns) {
+    if (payload.item.cells[column.id]?.type !== column.type) throw new Error('Invalid detail cell');
   }
   return payload;
 }
