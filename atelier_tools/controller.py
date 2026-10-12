@@ -58,7 +58,7 @@ def get_data(game_id: str, kind: DataKind, language: Language, query: str = "") 
     if query:
         normalized = query.casefold()
         rows = [row for row in rows if any(normalized in str(cell.value or "").casefold() for cell in row.cells.values())]
-    return DataResponse(kind=kind, count=len(rows), columns=[DisplayNumberColumn(id=column.id, label=getattr(column.label, language), type="number") if column.type == "number" else DisplayTextColumn(id=column.id, label=getattr(column.label, language), type="text") for column in definition.columns.for_kind(kind)], items=rows)
+    return DataResponse(kind=kind, count=len(rows), columns=[DisplayNumberColumn(id=column.id, label=getattr(column.label, language), type="number") if column.type == "number" else DisplayTextColumn(id=column.id, label=getattr(column.label, language), type="text") for column in definition.columns.for_kind(kind)], items=rows, categories=[{"id": identifier, "name": getattr(name, language)} for identifier, name in sorted(dataset.categories.items())])
 
 
 def search_game(game_id: str, query: str, category: str, language: str, limit: int) -> list[dict]:

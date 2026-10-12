@@ -45,6 +45,13 @@
           },
           "title": "Items",
           "type": "array"
+        },
+        "categories": {
+          "items": {
+            "$ref": "#/$defs/DisplayCategory"
+          },
+          "title": "Categories",
+          "type": "array"
         }
       },
       "required": [
@@ -110,6 +117,25 @@
         "monsters"
       ],
       "title": "Dataset",
+      "type": "object"
+    },
+    "DisplayCategory": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "DisplayCategory",
       "type": "object"
     },
     "DisplayNumberColumn": {

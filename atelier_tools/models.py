@@ -177,11 +177,17 @@ class DisplayNumberColumn(Model):
 DisplayColumn = Annotated[DisplayTextColumn | DisplayNumberColumn, Field(discriminator="type")]
 
 
+class DisplayCategory(Model):
+    id: int
+    name: str
+
+
 class DataResponse(Model):
     kind: DataKind
     count: int
     columns: list[DisplayColumn]
     items: list[DisplayRow]
+    categories: list[DisplayCategory] = Field(default_factory=list)
 
 
 class GameSummary(Model):

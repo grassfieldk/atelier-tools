@@ -25,29 +25,32 @@ export type Type3 = "number";
 export type Value1 = number | null;
 export type Items1 = DisplayRow[];
 export type Id4 = number;
+export type Name = string;
+export type Categories = DisplayCategory[];
+export type Id5 = number;
 export type Ja = string;
 export type En = string;
 export type Zh = string;
 export type Kind1 = "items";
-export type Categories = number[];
+export type Categories1 = number[];
 export type Items2 = Item[];
-export type Id5 = number;
+export type Id6 = number;
 export type Kind2 = "recipes";
 export type Result = number;
 export type Kind3 = "items" | "categories" | "monsters";
-export type Id6 = number;
+export type Id7 = number;
 export type Quantity = number;
 export type Ingredients = Ingredient[];
 export type Recipes = Recipe[];
-export type Id7 = number;
+export type Id8 = number;
 export type Kind4 = "traits";
 export type Traits = Trait[];
-export type Id8 = number;
+export type Id9 = number;
 export type Kind5 = "maps";
 export type Items3 = number[];
 export type Monsters = number[];
 export type Maps = MapArea[];
-export type Id9 = number;
+export type Id10 = number;
 export type Kind6 = "monsters";
 export type Item1 = number | null;
 export type SourceItemId = number;
@@ -55,11 +58,11 @@ export type Slot = number;
 export type SourceValues = number[];
 export type Drops = MonsterDrop[];
 export type Monsters1 = Monster[];
-export type Id10 = string;
-export type Type4 = "text";
 export type Id11 = string;
-export type Type5 = "number";
+export type Type4 = "text";
 export type Id12 = string;
+export type Type5 = "number";
+export type Id13 = string;
 export type Items4 = (TextColumn | NumberColumn)[];
 export type Recipes1 = (TextColumn | NumberColumn)[];
 export type Traits1 = (TextColumn | NumberColumn)[];
@@ -85,6 +88,7 @@ export interface DataResponse {
   count: Count;
   columns: Columns;
   items: Items1;
+  categories?: Categories;
 }
 export interface DisplayTextColumn {
   id: Id1;
@@ -111,21 +115,25 @@ export interface NumberCell {
   type: Type3;
   value: Value1;
 }
+export interface DisplayCategory {
+  id: Id4;
+  name: Name;
+}
 export interface Dataset {
   items: Items2;
   recipes: Recipes;
   traits: Traits;
   maps: Maps;
   monsters: Monsters1;
-  categories?: Categories1;
+  categories?: Categories2;
 }
 export interface Item {
-  id: Id4;
+  id: Id5;
   name: LocalizedText;
   cells: Cells1;
   attributes?: Attributes;
   kind: Kind1;
-  categories?: Categories;
+  categories?: Categories1;
 }
 export interface LocalizedText {
   ja: Ja;
@@ -141,7 +149,7 @@ export interface Attributes {
   [k: string]: string | number | boolean | null;
 }
 export interface Recipe {
-  id: Id5;
+  id: Id6;
   name: LocalizedText;
   cells: Cells2;
   attributes?: Attributes1;
@@ -163,10 +171,10 @@ export interface Ingredient {
 }
 export interface Reference {
   kind: Kind3;
-  id: Id6;
+  id: Id7;
 }
 export interface Trait {
-  id: Id7;
+  id: Id8;
   name: LocalizedText;
   cells: Cells3;
   attributes?: Attributes2;
@@ -181,7 +189,7 @@ export interface Attributes2 {
   [k: string]: string | number | boolean | null;
 }
 export interface MapArea {
-  id: Id8;
+  id: Id9;
   name: LocalizedText;
   cells: Cells4;
   attributes?: Attributes3;
@@ -198,7 +206,7 @@ export interface Attributes3 {
   [k: string]: string | number | boolean | null;
 }
 export interface Monster {
-  id: Id9;
+  id: Id10;
   name: LocalizedText;
   cells: Cells5;
   attributes?: Attributes4;
@@ -219,11 +227,11 @@ export interface MonsterDrop {
   slot: Slot;
   source_values: SourceValues;
 }
-export interface Categories1 {
+export interface Categories2 {
   [k: string]: LocalizedText;
 }
 export interface GameDefinition {
-  id: Id10;
+  id: Id11;
   title: LocalizedText;
   series: LocalizedText;
   columns: GameColumns;
@@ -237,11 +245,11 @@ export interface GameColumns {
 }
 export interface TextColumn {
   type?: Type4;
-  id: Id11;
+  id: Id12;
   label: LocalizedText;
 }
 export interface NumberColumn {
   type?: Type5;
-  id: Id12;
+  id: Id13;
   label: LocalizedText;
 }

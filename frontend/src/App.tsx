@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   Anchor,
+  Badge,
   Button,
   Container,
   Group,
@@ -172,6 +173,13 @@ function HomePage({ language, onLanguageChange }: { language: Language; onLangua
 }
 
 function DataTable({ data, text }: { data: DataResponse; text: (key: keyof Translation, values?: Record<string, string>) => string }) {
+  const visibleCategories = new Set(data.items.flatMap((row) => {
+    const cell = row.cells.categories;
+    return cell?.type === 'text' ? cell.value?.split('、').map((category) => category.trim()).filter(Boolean) ?? [] : [];
+  }));
+  const categoryOptions = [...(data.categories ?? [])].sort((first, second) => first.id - second.id)
+    .filter((category) => visibleCategories.has(category.name))
+    .map((category) => ({ value: category.name, label: category.name.replace(/^[（(](.*)[）)]$/, '$1').trim() }));
   const columns = useMemo<DataColumn[]>(() => data.columns.map((column) => ({
     id: column.id,
     header: column.label,
@@ -192,10 +200,17 @@ function DataTable({ data, text }: { data: DataResponse; text: (key: keyof Trans
         </Button>
       </Table.Th>)}</Table.Tr>
       <Table.Tr>{table.getAllLeafColumns().map((column) => <Table.Th key={column.id}>
-        <TextInput size="xs" value={String(column.getFilterValue() ?? '')} onChange={(event) => { const value = event.currentTarget.value; column.setFilterValue(value); }} placeholder={text('filterPlaceholder')} aria-label={text('filterColumn', { column: String(column.columnDef.header) })} />
+        {column.id === 'categories'
+          ? <Select size="xs" data={categoryOptions} value={String(column.getFilterValue() ?? '') || null} onChange={(value) => column.setFilterValue(value ?? '')} clearable searchable placeholder={text('filterPlaceholder')} aria-label={text('filterColumn', { column: String(column.columnDef.header) })} />
+          : <TextInput size="xs" value={String(column.getFilterValue() ?? '')} onChange={(event) => { const value = event.currentTarget.value; column.setFilterValue(value); }} placeholder={text('filterPlaceholder')} aria-label={text('filterColumn', { column: String(column.columnDef.header) })} />}
       </Table.Th>)}</Table.Tr>
     </Table.Thead>
-    <Table.Tbody>{visibleRows.length ? visibleRows.map((row) => <Table.Tr key={row.id}>{data.columns.map((column) => <Table.Td key={column.id} style={{ whiteSpace: 'pre-line' }}>{row.original.cells[column.id]?.value ?? ''}</Table.Td>)}</Table.Tr>) : <Table.Tr><Table.Td colSpan={columns.length}>{text('noData')}</Table.Td></Table.Tr>}</Table.Tbody>
+    <Table.Tbody>{visibleRows.length ? visibleRows.map((row) => <Table.Tr key={row.id}>{data.columns.map((column) => {
+      const cell = row.original.cells[column.id];
+      return <Table.Td key={column.id} style={{ whiteSpace: 'pre-line' }}>{column.id === 'categories' && cell?.type === 'text'
+        ? <Group gap={4}>{[...new Set(cell.value?.split('、').map((category) => category.trim()).filter(Boolean))].map((category) => <Badge key={category} variant="light" tt="none" style={{ maxWidth: '100%', height: 'auto', whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{category.replace(/^[（(](.*)[）)]$/, '$1').trim()}</Badge>)}</Group>
+        : cell?.value ?? ''}</Table.Td>;
+    })}</Table.Tr>) : <Table.Tr><Table.Td colSpan={columns.length}>{text('noData')}</Table.Td></Table.Tr>}</Table.Tbody>
     </Table></Table.ScrollContainer>
   </Stack>;
 }
