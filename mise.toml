@@ -60,3 +60,14 @@ run = '".venv\Scripts\python.exe" -m pytest -q -p no:cacheprovider --basetemp te
 [tasks.frontend-typecheck]
 description = "フロントエンドの型を確認"
 run = 'npm --prefix frontend run typecheck'
+
+[tasks.contract]
+description = "共通 API スキーマと TypeScript 型を生成"
+run = [
+  '".venv\Scripts\python.exe" app.py schema',
+  'npm --prefix frontend exec -- json2ts -i frontend/src/generated/api.schema.json -o frontend/src/generated/api.ts',
+]
+
+[tasks.migrate]
+description = "旧形式のデータを作品別の保存先へ移行"
+run = '".venv\Scripts\python.exe" app.py migrate'

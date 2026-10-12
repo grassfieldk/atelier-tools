@@ -1,0 +1,996 @@
+{
+  "$defs": {
+    "DataResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "items",
+            "recipes",
+            "traits",
+            "maps",
+            "monsters"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "columns": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "number": "#/$defs/DisplayNumberColumn",
+                "text": "#/$defs/DisplayTextColumn"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/DisplayTextColumn"
+              },
+              {
+                "$ref": "#/$defs/DisplayNumberColumn"
+              }
+            ]
+          },
+          "title": "Columns",
+          "type": "array"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/DisplayRow"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "count",
+        "columns",
+        "items"
+      ],
+      "title": "DataResponse",
+      "type": "object"
+    },
+    "Dataset": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/Item"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "recipes": {
+          "items": {
+            "$ref": "#/$defs/Recipe"
+          },
+          "title": "Recipes",
+          "type": "array"
+        },
+        "traits": {
+          "items": {
+            "$ref": "#/$defs/Trait"
+          },
+          "title": "Traits",
+          "type": "array"
+        },
+        "maps": {
+          "items": {
+            "$ref": "#/$defs/MapArea"
+          },
+          "title": "Maps",
+          "type": "array"
+        },
+        "monsters": {
+          "items": {
+            "$ref": "#/$defs/Monster"
+          },
+          "title": "Monsters",
+          "type": "array"
+        },
+        "categories": {
+          "additionalProperties": {
+            "$ref": "#/$defs/LocalizedText"
+          },
+          "title": "Categories",
+          "type": "object"
+        }
+      },
+      "required": [
+        "items",
+        "recipes",
+        "traits",
+        "maps",
+        "monsters"
+      ],
+      "title": "Dataset",
+      "type": "object"
+    },
+    "DisplayNumberColumn": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "type": {
+          "const": "number",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "type"
+      ],
+      "title": "DisplayNumberColumn",
+      "type": "object"
+    },
+    "DisplayRow": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "cells": {
+          "additionalProperties": {
+            "discriminator": {
+              "mapping": {
+                "number": "#/$defs/NumberCell",
+                "text": "#/$defs/TextCell"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/TextCell"
+              },
+              {
+                "$ref": "#/$defs/NumberCell"
+              }
+            ]
+          },
+          "title": "Cells",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "cells"
+      ],
+      "title": "DisplayRow",
+      "type": "object"
+    },
+    "DisplayTextColumn": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "type": {
+          "const": "text",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "type"
+      ],
+      "title": "DisplayTextColumn",
+      "type": "object"
+    },
+    "GameColumns": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "number": "#/$defs/NumberColumn",
+                "text": "#/$defs/TextColumn"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/TextColumn"
+              },
+              {
+                "$ref": "#/$defs/NumberColumn"
+              }
+            ]
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "recipes": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "number": "#/$defs/NumberColumn",
+                "text": "#/$defs/TextColumn"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/TextColumn"
+              },
+              {
+                "$ref": "#/$defs/NumberColumn"
+              }
+            ]
+          },
+          "title": "Recipes",
+          "type": "array"
+        },
+        "traits": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "number": "#/$defs/NumberColumn",
+                "text": "#/$defs/TextColumn"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/TextColumn"
+              },
+              {
+                "$ref": "#/$defs/NumberColumn"
+              }
+            ]
+          },
+          "title": "Traits",
+          "type": "array"
+        },
+        "maps": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "number": "#/$defs/NumberColumn",
+                "text": "#/$defs/TextColumn"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/TextColumn"
+              },
+              {
+                "$ref": "#/$defs/NumberColumn"
+              }
+            ]
+          },
+          "title": "Maps",
+          "type": "array"
+        },
+        "monsters": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "number": "#/$defs/NumberColumn",
+                "text": "#/$defs/TextColumn"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/TextColumn"
+              },
+              {
+                "$ref": "#/$defs/NumberColumn"
+              }
+            ]
+          },
+          "title": "Monsters",
+          "type": "array"
+        }
+      },
+      "required": [
+        "items",
+        "recipes",
+        "traits",
+        "maps",
+        "monsters"
+      ],
+      "title": "GameColumns",
+      "type": "object"
+    },
+    "GameDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "series": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "columns": {
+          "$ref": "#/$defs/GameColumns"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "series",
+        "columns"
+      ],
+      "title": "GameDefinition",
+      "type": "object"
+    },
+    "GameSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "series": {
+          "title": "Series",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "series"
+      ],
+      "title": "GameSummary",
+      "type": "object"
+    },
+    "GamesResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/GameSummary"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "title": "GamesResponse",
+      "type": "object"
+    },
+    "Ingredient": {
+      "additionalProperties": false,
+      "properties": {
+        "reference": {
+          "$ref": "#/$defs/Reference"
+        },
+        "quantity": {
+          "title": "Quantity",
+          "type": "number"
+        }
+      },
+      "required": [
+        "reference",
+        "quantity"
+      ],
+      "title": "Ingredient",
+      "type": "object"
+    },
+    "Item": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "name": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "cells": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "discriminator": {
+                "mapping": {
+                  "number": "#/$defs/NumberCell",
+                  "text": "#/$defs/TextCell"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/TextCell"
+                },
+                {
+                  "$ref": "#/$defs/NumberCell"
+                }
+              ]
+            },
+            "propertyNames": {
+              "enum": [
+                "ja",
+                "en",
+                "zh"
+              ]
+            },
+            "type": "object"
+          },
+          "title": "Cells",
+          "type": "object"
+        },
+        "attributes": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Attributes",
+          "type": "object"
+        },
+        "kind": {
+          "const": "items",
+          "title": "Kind",
+          "type": "string"
+        },
+        "categories": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Categories",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "cells",
+        "kind"
+      ],
+      "title": "Item",
+      "type": "object"
+    },
+    "LocalizedText": {
+      "additionalProperties": false,
+      "properties": {
+        "ja": {
+          "title": "Ja",
+          "type": "string"
+        },
+        "en": {
+          "title": "En",
+          "type": "string"
+        },
+        "zh": {
+          "title": "Zh",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ja",
+        "en",
+        "zh"
+      ],
+      "title": "LocalizedText",
+      "type": "object"
+    },
+    "MapArea": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "name": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "cells": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "discriminator": {
+                "mapping": {
+                  "number": "#/$defs/NumberCell",
+                  "text": "#/$defs/TextCell"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/TextCell"
+                },
+                {
+                  "$ref": "#/$defs/NumberCell"
+                }
+              ]
+            },
+            "propertyNames": {
+              "enum": [
+                "ja",
+                "en",
+                "zh"
+              ]
+            },
+            "type": "object"
+          },
+          "title": "Cells",
+          "type": "object"
+        },
+        "attributes": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Attributes",
+          "type": "object"
+        },
+        "kind": {
+          "const": "maps",
+          "title": "Kind",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "monsters": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Monsters",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "cells",
+        "kind",
+        "items",
+        "monsters"
+      ],
+      "title": "MapArea",
+      "type": "object"
+    },
+    "Monster": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "name": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "cells": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "discriminator": {
+                "mapping": {
+                  "number": "#/$defs/NumberCell",
+                  "text": "#/$defs/TextCell"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/TextCell"
+                },
+                {
+                  "$ref": "#/$defs/NumberCell"
+                }
+              ]
+            },
+            "propertyNames": {
+              "enum": [
+                "ja",
+                "en",
+                "zh"
+              ]
+            },
+            "type": "object"
+          },
+          "title": "Cells",
+          "type": "object"
+        },
+        "attributes": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Attributes",
+          "type": "object"
+        },
+        "kind": {
+          "const": "monsters",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "cells",
+        "kind"
+      ],
+      "title": "Monster",
+      "type": "object"
+    },
+    "NumberCell": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "number",
+          "title": "Type",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "title": "NumberCell",
+      "type": "object"
+    },
+    "NumberColumn": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "number",
+          "default": "number",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "$ref": "#/$defs/LocalizedText"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "NumberColumn",
+      "type": "object"
+    },
+    "Recipe": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "name": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "cells": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "discriminator": {
+                "mapping": {
+                  "number": "#/$defs/NumberCell",
+                  "text": "#/$defs/TextCell"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/TextCell"
+                },
+                {
+                  "$ref": "#/$defs/NumberCell"
+                }
+              ]
+            },
+            "propertyNames": {
+              "enum": [
+                "ja",
+                "en",
+                "zh"
+              ]
+            },
+            "type": "object"
+          },
+          "title": "Cells",
+          "type": "object"
+        },
+        "attributes": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Attributes",
+          "type": "object"
+        },
+        "kind": {
+          "const": "recipes",
+          "title": "Kind",
+          "type": "string"
+        },
+        "result": {
+          "title": "Result",
+          "type": "integer"
+        },
+        "ingredients": {
+          "items": {
+            "$ref": "#/$defs/Ingredient"
+          },
+          "title": "Ingredients",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "cells",
+        "kind",
+        "result",
+        "ingredients"
+      ],
+      "title": "Recipe",
+      "type": "object"
+    },
+    "Reference": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "items",
+            "categories",
+            "monsters"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "Reference",
+      "type": "object"
+    },
+    "TextCell": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "text",
+          "title": "Type",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "title": "TextCell",
+      "type": "object"
+    },
+    "TextColumn": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "text",
+          "default": "text",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "$ref": "#/$defs/LocalizedText"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "TextColumn",
+      "type": "object"
+    },
+    "Trait": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "name": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "cells": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "discriminator": {
+                "mapping": {
+                  "number": "#/$defs/NumberCell",
+                  "text": "#/$defs/TextCell"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/TextCell"
+                },
+                {
+                  "$ref": "#/$defs/NumberCell"
+                }
+              ]
+            },
+            "propertyNames": {
+              "enum": [
+                "ja",
+                "en",
+                "zh"
+              ]
+            },
+            "type": "object"
+          },
+          "title": "Cells",
+          "type": "object"
+        },
+        "attributes": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Attributes",
+          "type": "object"
+        },
+        "kind": {
+          "const": "traits",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "cells",
+        "kind"
+      ],
+      "title": "Trait",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "games": {
+      "$ref": "#/$defs/GamesResponse"
+    },
+    "data": {
+      "$ref": "#/$defs/DataResponse"
+    },
+    "dataset": {
+      "$ref": "#/$defs/Dataset"
+    },
+    "definition": {
+      "$ref": "#/$defs/GameDefinition"
+    }
+  },
+  "required": [
+    "games",
+    "data",
+    "dataset",
+    "definition"
+  ],
+  "title": "ApiContract",
+  "type": "object"
+}

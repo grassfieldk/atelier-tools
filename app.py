@@ -9,8 +9,12 @@ import webbrowser
 
 import uvicorn
 
-from atelier_tools.core import build_index, configure_logging, diagnose, export_csv, installation_dict, search_index
+from atelier_tools.core import configure_logging, installation_dict
 from atelier_tools.server import create_app
+from atelier_tools.controller import export_game, extract_game, migrate_game, search_game
+from atelier_tools.games.registry import get_game
+from atelier_tools.models import ApiContract
+from atelier_tools.core import PROJECT_ROOT
 
 
 def lan_addresses() -> list[str]:
@@ -57,7 +61,12 @@ def parser() -> argparse.ArgumentParser:
     search.add_argument("--language", default="all")
     search.add_argument("--limit", type=int, default=100)
     export = subparsers.add_parser("export", help="CSV を書き出す")
-    subparsers.add_parser("diagnose", help="ゲームの配置を検証")
+    diagnostic = subparsers.add_parser("diagnose", help="ゲームの配置を検証")
+    diagnostic.add_argument("--game-path")
+    migration = subparsers.add_parser("migrate", help="旧形式のデータを移行")
+    subparsers.add_parser("schema", help="API の JSON Schema を出力")
+    for command in (scan, search, export, diagnostic, migration):
+        command.add_argument("--game", default="meruru-dx")
     result.set_defaults(command="web")
     return result
 
@@ -73,15 +82,22 @@ def main() -> int:
         if args.command == "web":
             return run_web(args)
         if args.command == "scan":
-            print(json.dumps(build_index(args.game_path), ensure_ascii=False, indent=2))
+            print(json.dumps(extract_game(args.game, args.game_path), ensure_ascii=False, indent=2))
         elif args.command == "search":
-            print(json.dumps(search_index(args.query, args.category, args.language, args.limit), ensure_ascii=False, indent=2))
+            print(json.dumps(search_game(args.game, args.query, args.category, args.language, args.limit), ensure_ascii=False, indent=2))
         elif args.command == "export":
-            print(json.dumps(export_csv(), ensure_ascii=False, indent=2))
+            print(json.dumps(export_game(args.game), ensure_ascii=False, indent=2))
         elif args.command == "diagnose":
-            diagnosis = diagnose()
+            diagnosis = get_game(args.game).diagnose(args.game_path)
             print(json.dumps(installation_dict(diagnosis), ensure_ascii=False, indent=2))
             return 0 if diagnosis.is_valid else 2
+        elif args.command == "migrate":
+            print(json.dumps(migrate_game(args.game), ensure_ascii=False, indent=2))
+        elif args.command == "schema":
+            destination = PROJECT_ROOT / "frontend" / "src" / "generated" / "api.schema.json"
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(json.dumps(ApiContract.model_json_schema(), ensure_ascii=False, indent=2), encoding="utf-8")
+            print(destination)
         return 0
     except Exception as exception:
         print(f"ERROR: {exception}", file=sys.stderr)

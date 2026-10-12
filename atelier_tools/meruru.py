@@ -330,7 +330,7 @@ def _category_tables(executable: Executable) -> tuple[list[int], int]:
     return tables, count
 
 
-def extract_structured_data(japanese_path: Path, english_path: Path | None = None) -> dict[str, list[dict]]:
+def extract_structured_data(japanese_path: Path, english_path: Path | None = None, *, analysis_root: Path | None = None) -> dict[str, list[dict]]:
     executable = open_executable(japanese_path)
     synthesis = find_table(executable, ("クラフト", "フラム", "レヘルン"), SYNTHESIS_STRIDE)
     materials = find_table(executable, ("プレイン草", "マジックグラス", "うに"), MATERIAL_STRIDE)
@@ -520,7 +520,7 @@ def extract_structured_data(japanese_path: Path, english_path: Path | None = Non
         )
         monster_id += 1
 
-    analysis_root = Path(__file__).resolve().parent.parent / "data" / "analysis"
+    analysis_root = analysis_root or Path(__file__).resolve().parent.parent / "data" / "analysis"
     items_by_field = _collect_associations(analysis_root / "collect-data.bin")
     monsters_by_field = _monster_associations(executable, len(monsters), analysis_root / "meruru-text.bin")
     valid_item_ids = {item["game_item_id"] for item in items}
