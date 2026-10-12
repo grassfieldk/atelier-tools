@@ -145,26 +145,32 @@ function useLanguage(): [Language, (language: Language) => void] {
   return [language, setLanguage];
 }
 
+function LoadingStatus({ language }: { language: Language }) {
+  return <Group gap="xs" role="status" aria-live="polite"><Loader size="sm" /><Text size="sm">{({ ja: '読み込み中', en: 'Loading', zh: '加载中' } satisfies Record<Language, string>)[language]}</Text></Group>;
+}
+
 function HomePage({ language, onLanguageChange }: { language: Language; onLanguageChange: (language: Language) => void }) {
-  const [games, setGames] = useState<Game[]>([]);
-  const [error, setError] = useState('');
+  const [result, setResult] = useState<{ language: Language; games?: Game[]; error?: string } | null>(null);
   useEffect(() => {
+    let cancelled = false;
     requestGames(language)
-      .then((payload) => setGames(payload.items))
-      .catch((reason: Error) => setError(reason.message));
+      .then((payload) => { if (!cancelled) setResult({ language, games: payload.items }); })
+      .catch((reason: Error) => { if (!cancelled) setResult({ language, error: reason.message }); });
+    return () => { cancelled = true; };
   }, [language]);
+  const current = result?.language === language ? result : null;
   const groups = useMemo(() => {
     const result = new Map<string, Game[]>();
-    for (const game of games) result.set(game.series, [...(result.get(game.series) || []), game]);
+    for (const game of current?.games ?? []) result.set(game.series, [...(result.get(game.series) || []), game]);
     return [...result.entries()];
-  }, [games]);
+  }, [current]);
   const text = (key: keyof Translation, values?: Record<string, string>) => translate(language, key, values);
   return (
     <Container size="md" py="xl">
       <Stack gap="xl">
         <Header language={language} onLanguageChange={onLanguageChange} />
         <Title order={1}>{text('siteTitle')}</Title>
-        {error ? <Text c="red">{error}</Text> : groups.length ? groups.map(([series, seriesGames]) => (
+        {current?.error ? <Text c="red">{current.error}</Text> : !current?.games ? <LoadingStatus language={language} /> : groups.length ? groups.map(([series, seriesGames]) => (
           <Stack key={series} gap="xs">
             <Title order={2}>{series}</Title>
             {seriesGames.map((game) => <Anchor key={game.id} href={`/games/${encodeURIComponent(game.id)}`}>{game.title}</Anchor>)}
@@ -203,7 +209,7 @@ function CategoryBadge({ name, gameId, identifier, language }: { name: string; g
     <Popover.Target><Badge component="button" type="button" variant="light" tt="none" style={{ ...style, cursor: 'pointer' }} aria-expanded={opened} aria-haspopup="dialog" onClick={() => setOpened((value) => !value)}>{label}</Badge></Popover.Target>
     <Popover.Dropdown>{opened && <Stack gap="xs">
       <Text fw={600}>{label}</Text>
-      {current?.error ? <><Text c="red" role="alert">{current.error}</Text><Button size="xs" variant="subtle" onClick={() => setAttempt((value) => value + 1)}>{({ ja: '再試行', en: 'Retry', zh: '重试' } satisfies Record<Language, string>)[language]}</Button></> : !current?.items ? <Loader size="sm" /> : <>
+      {current?.error ? <><Text c="red" role="alert">{current.error}</Text><Button size="xs" variant="subtle" onClick={() => setAttempt((value) => value + 1)}>{({ ja: '再試行', en: 'Retry', zh: '重试' } satisfies Record<Language, string>)[language]}</Button></> : !current?.items ? <LoadingStatus language={language} /> : <>
         <Text size="xs" c="dimmed">{translate(language, 'count', { count: String(current.items.length) })}</Text>
         <ScrollArea.Autosize mah={300}><Stack gap="xs">{current.items.length ? current.items.map((item) => <Anchor key={item.id} href={detailPath(gameId, 'items', item.id)}>{item.cells.name?.value ?? `#${item.id}`}</Anchor>) : <Text size="sm">{translate(language, 'noData')}</Text>}</Stack></ScrollArea.Autosize>
       </>}
@@ -341,8 +347,8 @@ function GamePage({ gameId, language, onLanguageChange }: { gameId: string; lang
             <Button type="submit">{text('search')}</Button>
           </Group>
         </form>
-        <Text size="sm" c="dimmed">{text('count', { count: (data?.count ?? 0).toLocaleString() })}</Text>
-        {error ? <Text c="red">{error}</Text> : data ? <DataTable key={`${kind}-${language}`} gameId={gameId} data={data} text={text} language={language} /> : <Text>{text('noData')}</Text>}
+        {data && !error && <Text size="sm" c="dimmed">{text('count', { count: data.count.toLocaleString() })}</Text>}
+        {error ? <Text c="red">{error}</Text> : data ? <DataTable key={`${kind}-${language}`} gameId={gameId} data={data} text={text} language={language} /> : <LoadingStatus language={language} />}
       </Stack>
     </Container>
   );
@@ -362,7 +368,7 @@ function DetailPage({ gameId, kind, identifier, language, onLanguageChange }: { 
   return <Container size="md" py="xl"><Stack gap="lg">
     <Header language={language} onLanguageChange={onLanguageChange} />
     <Group gap="xs"><Anchor href={`/games/${encodeURIComponent(gameId)}`}>{data?.game.title ?? gameId}</Anchor><Text c="dimmed">/</Text><Anchor href={`/games/${encodeURIComponent(gameId)}?kind=${kind}`}>{translations[language][kind]}</Anchor></Group>
-    {current?.error ? <Text c="red" role="alert">{current.error}</Text> : !data ? <Loader size="sm" /> : <>
+    {current?.error ? <Text c="red" role="alert">{current.error}</Text> : !data ? <LoadingStatus language={language} /> : <>
       <Title order={1} style={{ overflowWrap: 'anywhere' }}>{data.name}</Title>
       <Text size="sm" c="dimmed">ID: {data.item.id}</Text>
       <Table><Table.Tbody>{data.columns.filter((column) => column.id !== 'name').map((column) => <Table.Tr key={column.id}><Table.Th w="30%" style={{ verticalAlign: 'top' }}>{column.label}</Table.Th><Table.Td style={{ whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}><DataCell gameId={gameId} kind={kind} row={data.item} columnId={column.id} language={language} /></Table.Td></Table.Tr>)}</Table.Tbody></Table>
