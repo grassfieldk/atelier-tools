@@ -667,6 +667,13 @@
           "const": "monsters",
           "title": "Kind",
           "type": "string"
+        },
+        "drops": {
+          "items": {
+            "$ref": "#/$defs/MonsterDrop"
+          },
+          "title": "Drops",
+          "type": "array"
         }
       },
       "required": [
@@ -676,6 +683,45 @@
         "kind"
       ],
       "title": "Monster",
+      "type": "object"
+    },
+    "MonsterDrop": {
+      "additionalProperties": false,
+      "properties": {
+        "item": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Item"
+        },
+        "source_item_id": {
+          "title": "Source Item Id",
+          "type": "integer"
+        },
+        "slot": {
+          "title": "Slot",
+          "type": "integer"
+        },
+        "source_values": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Source Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "item",
+        "source_item_id",
+        "slot",
+        "source_values"
+      ],
+      "title": "MonsterDrop",
       "type": "object"
     },
     "NumberCell": {

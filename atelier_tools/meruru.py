@@ -510,11 +510,25 @@ def extract_structured_data(japanese_path: Path, english_path: Path | None = Non
             break
         offset = monster_table + monster_id * MONSTER_STRIDE
         words = _words(executable, offset, MONSTER_STRIDE)
+        stats_pointer = struct.unpack_from("<Q", executable.data, offset + 0x30)[0]
+        drops_pointer = struct.unpack_from("<Q", executable.data, offset + 0x20)[0]
+        stats_offset = rva_to_offset(executable, stats_pointer - executable.image_base)
+        drops_offset = rva_to_offset(executable, drops_pointer - executable.image_base)
+        if stats_offset is None or drops_offset is None:
+            raise ValueError(f"Invalid monster data pointer: {monster_id}")
+        stats = _words(executable, stats_offset, 0x38)
+        drop_words = _words(executable, drops_offset, 0x90)
         monsters.append(
             {
                 "monster_id": monster_id,
                 **_names(executable, monster_tables, monster_id, MONSTER_STRIDE),
-                "level": words[5],
+                **dict(zip(("level", "hp", "attack", "defense", "speed"), stats[:5], strict=True)),
+                "source_reward_0": words[4],
+                "source_reward_1": words[5],
+                "stats_offset": stats_offset,
+                "drops_offset": drops_offset,
+                **{f"source_stat_{index}": value for index, value in enumerate(stats)},
+                **{f"source_drop_{index}": value for index, value in enumerate(drop_words)},
                 "source_offset": offset,
             }
         )

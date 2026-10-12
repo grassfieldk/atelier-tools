@@ -154,6 +154,7 @@ CREATE TABLE monsters (
     name_en TEXT NOT NULL,
     name_zh TEXT NOT NULL,
     level INTEGER NOT NULL,
+    details_json TEXT NOT NULL,
     source_offset INTEGER NOT NULL
 );
 CREATE TABLE map_items (
@@ -245,9 +246,9 @@ def build_index(game_path: str | Path | None = None, *, database: Path | None = 
             structured["maps"],
         )
         connection.executemany(
-            "INSERT INTO monsters(monster_id,name_ja,name_en,name_zh,level,source_offset) "
-            "VALUES(:monster_id,:name_ja,:name_en,:name_zh,:level,:source_offset)",
-            structured["monsters"],
+            "INSERT INTO monsters(monster_id,name_ja,name_en,name_zh,level,details_json,source_offset) "
+            "VALUES(:monster_id,:name_ja,:name_en,:name_zh,:level,:details_json,:source_offset)",
+            [{**monster, "details_json": json.dumps(monster, ensure_ascii=False)} for monster in structured["monsters"]],
         )
         connection.executemany(
             "INSERT INTO map_items(map_id,item_id) VALUES(:map_id,:item_id)",
@@ -259,7 +260,7 @@ def build_index(game_path: str | Path | None = None, *, database: Path | None = 
         )
         generated_at = datetime.now().astimezone().isoformat()
         metadata = {
-            "schema_version": "5",
+            "schema_version": "6",
             "generated_at": generated_at,
             "game": "Atelier Meruru ~The Apprentice of Arland~ DX",
             "read_only": "true",
@@ -280,7 +281,7 @@ def build_index(game_path: str | Path | None = None, *, database: Path | None = 
         connection.close()
     os.replace(temporary, destination)
     summary = {
-        "schema_version": 5,
+        "schema_version": 6,
         "generated_at": generated_at,
         "game": "Atelier Meruru ~The Apprentice of Arland~ DX",
         "read_only": True,

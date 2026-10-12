@@ -49,6 +49,11 @@ export type Monsters = number[];
 export type Maps = MapArea[];
 export type Id9 = number;
 export type Kind6 = "monsters";
+export type Item1 = number | null;
+export type SourceItemId = number;
+export type Slot = number;
+export type SourceValues = number[];
+export type Drops = MonsterDrop[];
 export type Monsters1 = Monster[];
 export type Id10 = string;
 export type Type4 = "text";
@@ -198,6 +203,7 @@ export interface Monster {
   cells: Cells5;
   attributes?: Attributes4;
   kind: Kind6;
+  drops?: Drops;
 }
 export interface Cells5 {
   [k: string]: {
@@ -206,6 +212,12 @@ export interface Cells5 {
 }
 export interface Attributes4 {
   [k: string]: string | number | boolean | null;
+}
+export interface MonsterDrop {
+  item: Item1;
+  source_item_id: SourceItemId;
+  slot: Slot;
+  source_values: SourceValues;
 }
 export interface Categories1 {
   [k: string]: LocalizedText;

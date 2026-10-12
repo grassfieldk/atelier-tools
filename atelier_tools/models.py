@@ -85,8 +85,16 @@ class MapArea(Entity):
     monsters: list[int]
 
 
+class MonsterDrop(Model):
+    item: int | None
+    source_item_id: int
+    slot: int
+    source_values: list[int]
+
+
 class Monster(Entity):
     kind: Literal["monsters"]
+    drops: list[MonsterDrop] = Field(default_factory=list)
 
 
 class Dataset(Model):
@@ -117,6 +125,9 @@ class Dataset(Model):
         for area in self.maps:
             if not set(area.items) <= identifiers["items"] or not set(area.monsters) <= identifiers["monsters"]:
                 raise ValueError(f"Unknown map reference: {area.id}")
+        for monster in self.monsters:
+            if any(drop.item is not None and drop.item not in identifiers["items"] for drop in monster.drops):
+                raise ValueError(f"Unknown monster drop: {monster.id}")
         return self
 
 
