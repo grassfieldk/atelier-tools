@@ -14,6 +14,7 @@ from .models import (
     DataResponse,
     Dataset,
     DetailLink,
+    DetailRelation,
     DetailResponse,
     DisplayNumberColumn,
     DisplayReference,
@@ -167,51 +168,47 @@ def get_detail(game_id: str, kind: DataKind, identifier: int, language: Language
     entity = next((value for value in getattr(dataset, kind) if value.id == identifier), None)
     if entity is None:
         raise FileNotFoundError("データが見つかりません。")
-    related: dict[DataKind, list[DetailLink]] = {category: [] for category in DATA_KINDS}
+    related: dict[DetailRelation, list[DetailLink]] = {}
 
-    def add(category: DataKind, target: int, quantity: float | None = None) -> None:
+    def add(relation: DetailRelation, category: DataKind, target: int) -> None:
         value = next((value for value in getattr(dataset, category) if value.id == target), None)
+        links = related.setdefault(relation, [])
         if (
             value is not None
             and not (category == kind and target == identifier)
-            and not any(link.id == target for link in related[category])
+            and not any(link.kind == category and link.id == target for link in links)
         ):
-            related[category].append(
+            links.append(
                 DetailLink(
-                    kind=category, id=target, name=getattr(value.name, language), quantity=quantity
+                    kind=category, id=target, name=getattr(value.name, language)
                 )
             )
 
     for recipe in dataset.recipes:
-        if kind == "recipes" and recipe.id == identifier:
-            add("items", recipe.result)
-            for ingredient in recipe.ingredients:
-                if ingredient.reference.kind == "items":
-                    add("items", ingredient.reference.id, ingredient.quantity)
-        if kind == "items" and (
-            recipe.result == identifier
-            or any(
+        if kind == "items":
+            if recipe.result == identifier:
+                add("acquisition", "recipes", recipe.id)
+            if any(
                 ingredient.reference.kind == "items" and ingredient.reference.id == identifier
                 for ingredient in recipe.ingredients
-            )
-        ):
-            add("recipes", recipe.id)
+            ):
+                add("used_in", "recipes", recipe.id)
     for area in dataset.maps:
         if kind == "maps" and area.id == identifier:
             for target in area.items:
-                add("items", target)
+                add("gathered_items", "items", target)
             for target in area.monsters:
-                add("monsters", target)
-        if (kind == "items" and identifier in area.items) or (
-            kind == "monsters" and identifier in area.monsters
-        ):
-            add("maps", area.id)
+                add("encounters", "monsters", target)
+        if kind == "items" and identifier in area.items:
+            add("acquisition", "maps", area.id)
+        if kind == "monsters" and identifier in area.monsters:
+            add("locations", "maps", area.id)
     for monster in dataset.monsters:
         for drop in monster.drops:
             if kind == "monsters" and monster.id == identifier and drop.item is not None:
-                add("items", drop.item)
+                add("drops", "items", drop.item)
             if kind == "items" and drop.item == identifier:
-                add("monsters", monster.id)
+                add("acquisition", "monsters", monster.id)
     data = get_data(game_id, kind, language)
     return DetailResponse(
         game=GameSummary(

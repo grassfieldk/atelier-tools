@@ -216,11 +216,12 @@
           },
           "propertyNames": {
             "enum": [
-              "items",
-              "recipes",
-              "traits",
-              "maps",
-              "monsters"
+              "acquisition",
+              "used_in",
+              "gathered_items",
+              "encounters",
+              "locations",
+              "drops"
             ]
           },
           "title": "Related",

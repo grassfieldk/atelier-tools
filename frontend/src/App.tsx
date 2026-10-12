@@ -104,7 +104,7 @@ const translations: Record<Language, Translation> = {
     noData: '該当するデータがありません',
     noGames: '閲覧できるデータがありません',
     count: '{count} 件',
-    quantity: '{count} 個',
+    quantity: 'x{count}',
     languageNames: { ja: '日本語', en: '英語', zh: '中国語' },
     gameNotFound: 'ゲームが見つかりません',
   },
@@ -166,7 +166,7 @@ const translations: Record<Language, Translation> = {
     noData: '没有匹配的数据',
     noGames: '没有可浏览的数据',
     count: '{count} 项',
-    quantity: '{count} 个',
+    quantity: 'x{count}',
     languageNames: { ja: '日语', en: '英语', zh: '中文' },
     gameNotFound: '找不到游戏',
   },
@@ -289,7 +289,7 @@ function HomePage({
   const text = (key: keyof Translation, values?: Record<string, string>) =>
     translate(language, key, values);
   return (
-    <Container size="md" py="xl">
+    <Container py="xl">
       <Stack gap="xl">
         <Header language={language} onLanguageChange={onLanguageChange} />
         <Title order={1}>{text('siteTitle')}</Title>
@@ -504,7 +504,8 @@ function DataCell({
             ) : (
               reference.name
             )}
-            {reference.quantity !== null && ` ${reference.quantity}`}
+            {reference.quantity !== null &&
+              ` ${translate(language, 'quantity', { count: String(reference.quantity) })}`}
           </span>
         ))}
         {referenceLimit !== undefined && references.length > referenceLimit && (
@@ -756,7 +757,7 @@ function GamePage({
     setSubmittedQuery(query);
   };
   return (
-    <Container size="lg" py="xl" h="100dvh" style={{ overflow: 'hidden' }}>
+    <Container py="xl" h="100dvh" style={{ overflow: 'hidden' }}>
       <Stack gap="lg" h="100%" mih={0}>
         <Header
           language={language}
@@ -831,6 +832,20 @@ function GamePage({
   );
 }
 
+const detailRelations = {
+  acquisition: { ja: '入手方法', en: 'Obtaining methods', zh: '获取方式' },
+  used_in: { ja: '使用レシピ', en: 'Recipes using this item', zh: '使用此道具的配方' },
+  gathered_items: { ja: '入手アイテム', en: 'Obtainable items', zh: '可获取道具' },
+  encounters: { ja: '出現モンスター', en: 'Monsters encountered', zh: '出现的怪物' },
+  locations: { ja: '出現場所', en: 'Locations', zh: '出现地点' },
+  drops: { ja: 'ドロップ', en: 'Drops', zh: '掉落' },
+} satisfies Record<keyof DetailResponse['related'], Record<Language, string>>;
+
+const detailColumnRelations: Partial<Record<DataKind, Record<string, keyof typeof detailRelations>>> = {
+  maps: { items: 'gathered_items', monsters: 'encounters' },
+  monsters: { maps: 'locations', drops: 'drops' },
+};
+
 function DetailPage({
   gameId,
   kind,
@@ -865,7 +880,7 @@ function DetailPage({
   const current = result?.language === language ? result : null;
   const data = current?.data;
   return (
-    <Container size="md" py="xl">
+    <Container py="xl">
       <Stack gap="lg">
         <Header language={language} onLanguageChange={onLanguageChange} />
         <Group gap="xs">
@@ -898,7 +913,9 @@ function DetailPage({
                   .map((column) => (
                     <Table.Tr key={column.id}>
                       <Table.Th w="30%" style={{ verticalAlign: 'top' }}>
-                        {column.label}
+                        {detailColumnRelations[kind]?.[column.id]
+                          ? detailRelations[detailColumnRelations[kind][column.id]][language]
+                          : column.label}
                       </Table.Th>
                       <Table.Td style={{ whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}>
                         <DataCell
@@ -911,32 +928,50 @@ function DetailPage({
                       </Table.Td>
                     </Table.Tr>
                   ))}
+                {(['acquisition', 'used_in'] as const).map((relation) => {
+              const links = data.related[relation];
+              const groups =
+                relation === 'acquisition'
+                  ? (['maps', 'monsters', 'recipes'] as const).map((source) => ({
+                      id: source,
+                      label: translations[language][source],
+                      links: links?.filter((link) => link.kind === source) ?? [],
+                    }))
+                  : [{ id: relation, label: null, links: links ?? [] }];
+              return links?.length ? (
+                <Table.Tr key={relation}>
+                  <Table.Th w="30%" style={{ verticalAlign: 'top' }}>
+                    {detailRelations[relation][language]}
+                  </Table.Th>
+                  <Table.Td style={{ overflowWrap: 'anywhere' }}>
+                    <Stack gap="xs">
+                      {groups.filter((group) => group.links.length > 0).map((group) => (
+                        <Stack key={group.id} gap="xs">
+                          {group.label && (
+                            <Text size="sm" fw={500}>
+                              {group.label}
+                            </Text>
+                          )}
+                          <Group gap="xs">
+                            {group.links.map((link) => (
+                              <span key={`${link.kind}:${link.id}`}>
+                                <Anchor href={detailPath(gameId, link.kind, link.id)}>
+                                  {link.name}
+                                </Anchor>
+                                {link.quantity !== null &&
+                                  ` ${translate(language, 'quantity', { count: String(link.quantity) })}`}
+                              </span>
+                            ))}
+                          </Group>
+                        </Stack>
+                      ))}
+                    </Stack>
+                  </Table.Td>
+                </Table.Tr>
+              ) : null;
+                })}
               </Table.Tbody>
             </Table>
-            {dataKinds.map((category) =>
-              data.related[category]?.length ? (
-                <Stack key={category} gap="xs">
-                  <Title order={2} size="h4">
-                    {translations[language][category]}
-                  </Title>
-                  {data.related[category].map((link) => (
-                    <Group key={link.id} gap="xs">
-                      <Anchor
-                        href={detailPath(gameId, link.kind, link.id)}
-                        style={{ overflowWrap: 'anywhere' }}
-                      >
-                        {link.name}
-                      </Anchor>
-                      {link.quantity !== null && (
-                        <Text size="sm">
-                          {translate(language, 'quantity', { count: String(link.quantity) })}
-                        </Text>
-                      )}
-                    </Group>
-                  ))}
-                </Stack>
-              ) : null,
-            )}
           </>
         )}
       </Stack>

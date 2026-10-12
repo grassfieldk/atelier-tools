@@ -221,13 +221,16 @@ class DetailLink(Model):
     quantity: float | None = None
 
 
+DetailRelation = Literal["acquisition", "used_in", "gathered_items", "encounters", "locations", "drops"]
+
+
 class DetailResponse(Model):
     game: GameSummary
     kind: DataKind
     name: str
     columns: list[DisplayColumn]
     item: DisplayRow
-    related: dict[DataKind, list[DetailLink]]
+    related: dict[DetailRelation, list[DetailLink]]
 
 
 class ApiContract(Model):
