@@ -15,7 +15,6 @@
 /.mise/
 /tests/.work/
 /tests/.work-unlimited-*/
-/scripts/
 
 # Python キャッシュ
 __pycache__/
