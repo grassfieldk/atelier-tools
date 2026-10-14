@@ -226,6 +226,17 @@
           },
           "title": "Related",
           "type": "object"
+        },
+        "recipe_tree": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecipeTree"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -1072,6 +1083,92 @@
         "ingredients"
       ],
       "title": "Recipe",
+      "type": "object"
+    },
+    "RecipeTree": {
+      "additionalProperties": false,
+      "properties": {
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/RecipeTreeNode"
+          },
+          "title": "Nodes",
+          "type": "array"
+        },
+        "edges": {
+          "items": {
+            "$ref": "#/$defs/RecipeTreeEdge"
+          },
+          "title": "Edges",
+          "type": "array"
+        }
+      },
+      "required": [
+        "nodes",
+        "edges"
+      ],
+      "title": "RecipeTree",
+      "type": "object"
+    },
+    "RecipeTreeEdge": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "quantity": {
+          "title": "Quantity",
+          "type": "number"
+        }
+      },
+      "required": [
+        "source",
+        "target",
+        "quantity"
+      ],
+      "title": "RecipeTreeEdge",
+      "type": "object"
+    },
+    "RecipeTreeNode": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "kind": {
+          "const": "recipes",
+          "title": "Kind",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "categories": {
+          "items": {
+            "$ref": "#/$defs/DisplayCategory"
+          },
+          "title": "Categories",
+          "type": "array"
+        }
+      },
+      "required": [
+        "key",
+        "kind",
+        "id",
+        "name"
+      ],
+      "title": "RecipeTreeNode",
       "type": "object"
     },
     "Reference": {

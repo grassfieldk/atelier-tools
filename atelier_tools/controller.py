@@ -15,6 +15,7 @@ from .models import (
     Dataset,
     DetailLink,
     DetailRelation,
+    DisplayCategory,
     DetailResponse,
     DisplayNumberColumn,
     DisplayReference,
@@ -28,6 +29,9 @@ from .models import (
     MapArea,
     Monster,
     Recipe,
+    RecipeTree,
+    RecipeTreeEdge,
+    RecipeTreeNode,
 )
 from .storage import database_path, game_directory, load_dataset, save_dataset
 
@@ -162,6 +166,72 @@ def get_data(game_id: str, kind: DataKind, language: Language, query: str = "") 
     )
 
 
+def recipe_tree(dataset: Dataset, identifier: int, language: Language) -> RecipeTree:
+    recipes = {recipe.id: recipe for recipe in dataset.recipes}
+    producers: dict[int, list[int]] = {}
+    consumers: dict[int, list[int]] = {}
+    for recipe in dataset.recipes:
+        producers.setdefault(recipe.result, []).append(recipe.id)
+        for ingredient in recipe.ingredients:
+            if ingredient.reference.kind == "items":
+                consumers.setdefault(ingredient.reference.id, []).append(recipe.id)
+    nodes: dict[str, RecipeTreeNode] = {}
+    edges: dict[tuple[str, str], RecipeTreeEdge] = {}
+    ancestors: set[int] = set()
+    descendants: set[int] = set()
+    for upstream, reached in ((True, ancestors), (False, descendants)):
+        pending = [identifier]
+        while pending:
+            current = pending.pop()
+            if current in reached:
+                continue
+            reached.add(current)
+            recipe = recipes[current]
+            if upstream:
+                for ingredient in recipe.ingredients:
+                    if ingredient.reference.kind == "items":
+                        pending.extend(producers.get(ingredient.reference.id, []))
+            else:
+                pending.extend(consumers.get(recipe.result, []))
+    for current in sorted(ancestors | descendants):
+        recipe = recipes[current]
+        target = f"recipes:{current}"
+        nodes[target] = RecipeTreeNode(
+            key=target, kind="recipes", id=current, name=getattr(recipe.name, language)
+        )
+        for ingredient in recipe.ingredients:
+            reference = ingredient.reference
+            sources = producers.get(reference.id, []) if reference.kind == "items" else []
+            for source_id in sources:
+                if not (
+                    (current in ancestors and source_id in ancestors)
+                    or (current in descendants and source_id in descendants)
+                ):
+                    continue
+                source = f"recipes:{source_id}"
+                source_recipe = recipes[source_id]
+                nodes[source] = RecipeTreeNode(
+                    key=source,
+                    kind="recipes",
+                    id=source_id,
+                    name=getattr(source_recipe.name, language),
+                )
+                pair = (source, target)
+                if pair in edges:
+                    edges[pair].quantity += ingredient.quantity
+                else:
+                    edges[pair] = RecipeTreeEdge(
+                        source=source, target=target, quantity=ingredient.quantity
+                    )
+    items = {item.id: item for item in dataset.items}
+    for node in nodes.values():
+        node.categories = [
+            DisplayCategory(id=category, name=getattr(dataset.categories[category], language))
+            for category in items[recipes[node.id].result].categories
+        ]
+    return RecipeTree(nodes=list(nodes.values()), edges=list(edges.values()))
+
+
 def get_detail(game_id: str, kind: DataKind, identifier: int, language: Language) -> DetailResponse:
     get_game(game_id)
     definition, dataset = load_dataset(game_id)
@@ -178,11 +248,7 @@ def get_detail(game_id: str, kind: DataKind, identifier: int, language: Language
             and not (category == kind and target == identifier)
             and not any(link.kind == category and link.id == target for link in links)
         ):
-            links.append(
-                DetailLink(
-                    kind=category, id=target, name=getattr(value.name, language)
-                )
-            )
+            links.append(DetailLink(kind=category, id=target, name=getattr(value.name, language)))
 
     for recipe in dataset.recipes:
         if kind == "items":
@@ -221,6 +287,7 @@ def get_detail(game_id: str, kind: DataKind, identifier: int, language: Language
         columns=data.columns,
         item=display_row(dataset, entity, language),
         related=related,
+        recipe_tree=recipe_tree(dataset, identifier, language) if kind == "recipes" else None,
     )
 
 

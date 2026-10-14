@@ -38,42 +38,52 @@ export type Kind3 = "items" | "recipes" | "traits" | "maps" | "monsters";
 export type Id6 = number;
 export type Name3 = string;
 export type Quantity1 = number | null;
+export type Key = string;
+export type Kind4 = "recipes";
 export type Id7 = number;
+export type Name4 = string;
+export type Categories1 = DisplayCategory[];
+export type Nodes = RecipeTreeNode[];
+export type Source = string;
+export type Target = string;
+export type Quantity2 = number;
+export type Edges = RecipeTreeEdge[];
+export type Id8 = number;
 export type Ja = string;
 export type En = string;
 export type Zh = string;
-export type Kind4 = "items";
-export type Categories1 = number[];
+export type Kind5 = "items";
+export type Categories2 = number[];
 export type Items2 = Item[];
-export type Id8 = number;
-export type Kind5 = "recipes";
-export type Result = number;
-export type Kind6 = "items" | "categories" | "monsters";
 export type Id9 = number;
-export type Quantity2 = number;
+export type Kind6 = "recipes";
+export type Result = number;
+export type Kind7 = "items" | "categories" | "monsters";
+export type Id10 = number;
+export type Quantity3 = number;
 export type Ingredients = Ingredient[];
 export type Recipes = Recipe[];
-export type Id10 = number;
-export type Kind7 = "traits";
-export type Traits = Trait[];
 export type Id11 = number;
-export type Kind8 = "maps";
+export type Kind8 = "traits";
+export type Traits = Trait[];
+export type Id12 = number;
+export type Kind9 = "maps";
 export type Items3 = number[];
 export type Monsters = number[];
 export type Maps = MapArea[];
-export type Id12 = number;
-export type Kind9 = "monsters";
+export type Id13 = number;
+export type Kind10 = "monsters";
 export type Item1 = number | null;
 export type SourceItemId = number;
 export type Slot = number;
 export type SourceValues = number[];
 export type Drops = MonsterDrop[];
 export type Monsters1 = Monster[];
-export type Id13 = string;
-export type Type4 = "text";
 export type Id14 = string;
-export type Type5 = "number";
+export type Type4 = "text";
 export type Id15 = string;
+export type Type5 = "number";
+export type Id16 = string;
 export type Items4 = (TextColumn | NumberColumn)[];
 export type Recipes1 = (TextColumn | NumberColumn)[];
 export type Traits1 = (TextColumn | NumberColumn)[];
@@ -148,6 +158,7 @@ export interface DetailResponse {
   columns: Columns1;
   item: DisplayRow;
   related: Related;
+  recipe_tree?: RecipeTree | null;
 }
 export interface Related {
   [k: string]: DetailLink[];
@@ -158,21 +169,37 @@ export interface DetailLink {
   name: Name3;
   quantity?: Quantity1;
 }
+export interface RecipeTree {
+  nodes: Nodes;
+  edges: Edges;
+}
+export interface RecipeTreeNode {
+  key: Key;
+  kind: Kind4;
+  id: Id7;
+  name: Name4;
+  categories?: Categories1;
+}
+export interface RecipeTreeEdge {
+  source: Source;
+  target: Target;
+  quantity: Quantity2;
+}
 export interface Dataset {
   items: Items2;
   recipes: Recipes;
   traits: Traits;
   maps: Maps;
   monsters: Monsters1;
-  categories?: Categories2;
+  categories?: Categories3;
 }
 export interface Item {
-  id: Id7;
+  id: Id8;
   name: LocalizedText;
   cells: Cells1;
   attributes?: Attributes;
-  kind: Kind4;
-  categories?: Categories1;
+  kind: Kind5;
+  categories?: Categories2;
 }
 export interface LocalizedText {
   ja: Ja;
@@ -188,11 +215,11 @@ export interface Attributes {
   [k: string]: string | number | boolean | null;
 }
 export interface Recipe {
-  id: Id8;
+  id: Id9;
   name: LocalizedText;
   cells: Cells2;
   attributes?: Attributes1;
-  kind: Kind5;
+  kind: Kind6;
   result: Result;
   ingredients: Ingredients;
 }
@@ -206,18 +233,18 @@ export interface Attributes1 {
 }
 export interface Ingredient {
   reference: Reference;
-  quantity: Quantity2;
+  quantity: Quantity3;
 }
 export interface Reference {
-  kind: Kind6;
-  id: Id9;
+  kind: Kind7;
+  id: Id10;
 }
 export interface Trait {
-  id: Id10;
+  id: Id11;
   name: LocalizedText;
   cells: Cells3;
   attributes?: Attributes2;
-  kind: Kind7;
+  kind: Kind8;
 }
 export interface Cells3 {
   [k: string]: {
@@ -228,11 +255,11 @@ export interface Attributes2 {
   [k: string]: string | number | boolean | null;
 }
 export interface MapArea {
-  id: Id11;
+  id: Id12;
   name: LocalizedText;
   cells: Cells4;
   attributes?: Attributes3;
-  kind: Kind8;
+  kind: Kind9;
   items: Items3;
   monsters: Monsters;
 }
@@ -245,11 +272,11 @@ export interface Attributes3 {
   [k: string]: string | number | boolean | null;
 }
 export interface Monster {
-  id: Id12;
+  id: Id13;
   name: LocalizedText;
   cells: Cells5;
   attributes?: Attributes4;
-  kind: Kind9;
+  kind: Kind10;
   drops?: Drops;
 }
 export interface Cells5 {
@@ -266,11 +293,11 @@ export interface MonsterDrop {
   slot: Slot;
   source_values: SourceValues;
 }
-export interface Categories2 {
+export interface Categories3 {
   [k: string]: LocalizedText;
 }
 export interface GameDefinition {
-  id: Id13;
+  id: Id14;
   title: LocalizedText;
   series: LocalizedText;
   columns: GameColumns;
@@ -284,11 +311,11 @@ export interface GameColumns {
 }
 export interface TextColumn {
   type?: Type4;
-  id: Id14;
+  id: Id15;
   label: LocalizedText;
 }
 export interface NumberColumn {
   type?: Type5;
-  id: Id15;
+  id: Id16;
   label: LocalizedText;
 }

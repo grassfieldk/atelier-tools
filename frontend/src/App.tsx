@@ -1,13 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   Anchor,
-  Badge,
   Button,
   Container,
   Group,
-  Loader,
-  Popover,
-  ScrollArea,
   Select,
   SegmentedControl,
   Stack,
@@ -43,6 +39,9 @@ import {
   type DisplayRow,
 } from './api';
 import type { GameSummary } from './generated/api';
+import { RecipeTree } from './RecipeTree';
+import { CategoryBadge } from './CategoryBadge';
+import { LoadingStatus } from './LoadingStatus';
 
 type Translation = {
   siteTitle: string;
@@ -239,21 +238,6 @@ function useLanguage(): [Language, (language: Language) => void] {
   return [language, setLanguage];
 }
 
-function LoadingStatus({ language }: { language: Language }) {
-  return (
-    <Group gap="xs" role="status" aria-live="polite">
-      <Loader size="sm" />
-      <Text size="sm">
-        {
-          ({ ja: '読み込み中', en: 'Loading', zh: '加载中' } satisfies Record<Language, string>)[
-            language
-          ]
-        }
-      </Text>
-    </Group>
-  );
-}
-
 function HomePage({
   language,
   onLanguageChange,
@@ -318,121 +302,6 @@ function HomePage({
 
 function detailPath(gameId: string, kind: DataKind, identifier: number): string {
   return `/games/${encodeURIComponent(gameId)}/${kind}/${identifier}`;
-}
-
-function CategoryBadge({
-  name,
-  gameId,
-  identifier,
-  language,
-}: {
-  name: string;
-  gameId?: string;
-  identifier?: number;
-  language?: Language;
-}) {
-  const [opened, setOpened] = useState(false);
-  const [attempt, setAttempt] = useState(0);
-  const [result, setResult] = useState<{
-    scope: string;
-    items?: DisplayRow[];
-    error?: string;
-  } | null>(null);
-  const scope = `${gameId}:${identifier}:${language}:${attempt}`;
-  useEffect(() => {
-    if (!opened || gameId === undefined || identifier === undefined || language === undefined)
-      return;
-    let cancelled = false;
-    requestData(gameId, 'items', language, '')
-      .then((data) => {
-        const items = data.items.filter((row) =>
-          row.references?.categories?.some(
-            (reference) => reference.kind === 'categories' && reference.id === identifier,
-          ),
-        );
-        if (!cancelled) setResult({ scope, items });
-      })
-      .catch((reason: Error) => {
-        if (!cancelled) setResult({ scope, error: reason.message });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [opened, gameId, identifier, language, scope]);
-  const label = name.replace(/^[（(](.*)[）)]$/, '$1').trim();
-  const style = {
-    maxWidth: '100%',
-    height: 'auto',
-    whiteSpace: 'normal',
-    overflowWrap: 'anywhere',
-  } as const;
-  if (gameId === undefined || identifier === undefined || language === undefined)
-    return (
-      <Badge variant="light" tt="none" style={style}>
-        {label}
-      </Badge>
-    );
-  const current = result?.scope === scope ? result : null;
-  return (
-    <Popover opened={opened} onChange={setOpened} position="bottom-start" width={300} withinPortal>
-      <Popover.Target>
-        <Badge
-          component="button"
-          type="button"
-          variant="light"
-          tt="none"
-          style={{ ...style, cursor: 'pointer' }}
-          aria-expanded={opened}
-          aria-haspopup="dialog"
-          onClick={() => setOpened((value) => !value)}
-        >
-          {label}
-        </Badge>
-      </Popover.Target>
-      <Popover.Dropdown>
-        {opened && (
-          <Stack gap="xs">
-            <Text fw={600}>{label}</Text>
-            {current?.error ? (
-              <>
-                <Text c="red" role="alert">
-                  {current.error}
-                </Text>
-                <Button size="xs" variant="subtle" onClick={() => setAttempt((value) => value + 1)}>
-                  {
-                    ({ ja: '再試行', en: 'Retry', zh: '重试' } satisfies Record<Language, string>)[
-                      language
-                    ]
-                  }
-                </Button>
-              </>
-            ) : !current?.items ? (
-              <LoadingStatus language={language} />
-            ) : (
-              <>
-                <Text size="xs" c="dimmed">
-                  {translate(language, 'count', { count: String(current.items.length) })}
-                </Text>
-                <ScrollArea.Autosize mah={300}>
-                  <Stack gap="xs">
-                    {current.items.length ? (
-                      current.items.map((item) => (
-                        <Anchor key={item.id} href={detailPath(gameId, 'items', item.id)}>
-                          {item.cells.name?.value ?? `#${item.id}`}
-                        </Anchor>
-                      ))
-                    ) : (
-                      <Text size="sm">{translate(language, 'noData')}</Text>
-                    )}
-                  </Stack>
-                </ScrollArea.Autosize>
-              </>
-            )}
-          </Stack>
-        )}
-      </Popover.Dropdown>
-    </Popover>
-  );
 }
 
 function DataCell({
@@ -841,7 +710,9 @@ const detailRelations = {
   drops: { ja: 'ドロップ', en: 'Drops', zh: '掉落' },
 } satisfies Record<keyof DetailResponse['related'], Record<Language, string>>;
 
-const detailColumnRelations: Partial<Record<DataKind, Record<string, keyof typeof detailRelations>>> = {
+const detailColumnRelations: Partial<
+  Record<DataKind, Record<string, keyof typeof detailRelations>>
+> = {
   maps: { items: 'gathered_items', monsters: 'encounters' },
   monsters: { maps: 'locations', drops: 'drops' },
 };
@@ -929,49 +800,52 @@ function DetailPage({
                     </Table.Tr>
                   ))}
                 {(['acquisition', 'used_in'] as const).map((relation) => {
-              const links = data.related[relation];
-              const groups =
-                relation === 'acquisition'
-                  ? (['maps', 'monsters', 'recipes'] as const).map((source) => ({
-                      id: source,
-                      label: translations[language][source],
-                      links: links?.filter((link) => link.kind === source) ?? [],
-                    }))
-                  : [{ id: relation, label: null, links: links ?? [] }];
-              return links?.length ? (
-                <Table.Tr key={relation}>
-                  <Table.Th w="30%" style={{ verticalAlign: 'top' }}>
-                    {detailRelations[relation][language]}
-                  </Table.Th>
-                  <Table.Td style={{ overflowWrap: 'anywhere' }}>
-                    <Stack gap="xs">
-                      {groups.filter((group) => group.links.length > 0).map((group) => (
-                        <Stack key={group.id} gap="xs">
-                          {group.label && (
-                            <Text size="sm" fw={500}>
-                              {group.label}
-                            </Text>
-                          )}
-                          <Group gap="xs">
-                            {group.links.map((link) => (
-                              <span key={`${link.kind}:${link.id}`}>
-                                <Anchor href={detailPath(gameId, link.kind, link.id)}>
-                                  {link.name}
-                                </Anchor>
-                                {link.quantity !== null &&
-                                  ` ${translate(language, 'quantity', { count: String(link.quantity) })}`}
-                              </span>
+                  const links = data.related[relation];
+                  const groups =
+                    relation === 'acquisition'
+                      ? (['maps', 'monsters', 'recipes'] as const).map((source) => ({
+                          id: source,
+                          label: translations[language][source],
+                          links: links?.filter((link) => link.kind === source) ?? [],
+                        }))
+                      : [{ id: relation, label: null, links: links ?? [] }];
+                  return links?.length ? (
+                    <Table.Tr key={relation}>
+                      <Table.Th w="30%" style={{ verticalAlign: 'top' }}>
+                        {detailRelations[relation][language]}
+                      </Table.Th>
+                      <Table.Td style={{ overflowWrap: 'anywhere' }}>
+                        <Stack gap="xs">
+                          {groups
+                            .filter((group) => group.links.length > 0)
+                            .map((group) => (
+                              <Stack key={group.id} gap="xs">
+                                {group.label && (
+                                  <Text size="sm" fw={500}>
+                                    {group.label}
+                                  </Text>
+                                )}
+                                <Group gap="xs">
+                                  {group.links.map((link) => (
+                                    <span key={`${link.kind}:${link.id}`}>
+                                      <Anchor href={detailPath(gameId, link.kind, link.id)}>
+                                        {link.name}
+                                      </Anchor>
+                                      {link.quantity !== null &&
+                                        ` ${translate(language, 'quantity', { count: String(link.quantity) })}`}
+                                    </span>
+                                  ))}
+                                </Group>
+                              </Stack>
                             ))}
-                          </Group>
                         </Stack>
-                      ))}
-                    </Stack>
-                  </Table.Td>
-                </Table.Tr>
-              ) : null;
+                      </Table.Td>
+                    </Table.Tr>
+                  ) : null;
                 })}
               </Table.Tbody>
             </Table>
+            {kind === 'recipes' && <RecipeTree data={data} language={language} />}
           </>
         )}
       </Stack>

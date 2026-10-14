@@ -221,7 +221,28 @@ class DetailLink(Model):
     quantity: float | None = None
 
 
-DetailRelation = Literal["acquisition", "used_in", "gathered_items", "encounters", "locations", "drops"]
+DetailRelation = Literal[
+    "acquisition", "used_in", "gathered_items", "encounters", "locations", "drops"
+]
+
+
+class RecipeTreeNode(Model):
+    key: str
+    kind: Literal["recipes"]
+    id: int
+    name: str
+    categories: list[DisplayCategory] = Field(default_factory=list)
+
+
+class RecipeTreeEdge(Model):
+    source: str
+    target: str
+    quantity: float
+
+
+class RecipeTree(Model):
+    nodes: list[RecipeTreeNode]
+    edges: list[RecipeTreeEdge]
 
 
 class DetailResponse(Model):
@@ -231,6 +252,7 @@ class DetailResponse(Model):
     columns: list[DisplayColumn]
     item: DisplayRow
     related: dict[DetailRelation, list[DetailLink]]
+    recipe_tree: RecipeTree | None = None
 
 
 class ApiContract(Model):
